@@ -192,10 +192,15 @@ class Camera {
         }
        public:
         union {
-          struct { LA::SymmetricMatrix6x6f m_A; float m_r; LA::Vector6f m_b; };
+          struct { 
+            LA::SymmetricMatrix6x6f m_A; 
+            float m_r; 
+            LA::Vector6f m_b; 
+          };
           xp128f m_data[7];
         };
       };
+
       class CM : public LA::AlignedMatrix6x9f {
        public:
         inline CM operator - (const CM &B) const {
@@ -378,6 +383,7 @@ class Camera {
         inline CC() {}
         inline CC(const LA::AlignedMatrix6x6f &A) : LA::AlignedMatrix6x6f(A) {}
         static inline CC Get(const LA::AlignedMatrix6x6f &A) { return CC(A); }
+        
         inline void PrintError(const CC &A, const bool e = false) const {
           UT::PrintSeparator();
           LA::AlignedMatrix6x6f::Print(e);
@@ -387,6 +393,7 @@ class Camera {
           UT::PrintSeparator();
           E.LA::AlignedMatrix6x6f::Print(e);
         }
+
         inline bool AssertEqual(const CC &A, const int verbose = 1, const std::string str = "",
                                 const float epsAbs = 0.0f, const float epsRel = 0.0f) const {
           LA::AlignedMatrix3x3f App1, Apr1, Arp1, Arr1, App2, Apr2, Arp2, Arr2;
@@ -405,10 +412,12 @@ class Camera {
           }
           return false;
         }
+
         inline bool AssertZero(const int verbose = 1, const std::string str = "") const {
           return LA::AlignedMatrix6x6f::AssertZero(verbose, str, -1.0f, -1.0f);
         }
       };
+
 #ifdef CFG_IMU_FULL_COVARIANCE
       class CM : public Unitary::CM {
       };
@@ -790,86 +799,7 @@ class Camera {
 #endif
   };
 
-#ifdef CFG_DEBUG_EIGEN
-  class EigenFactor {
-   public:
-    class Unitary {
-     public:
-      inline void MakeZero() {
-        m_Acm.setZero();
-        m_Amm.setZero();
-      }
-      inline void operator = (const Factor::Unitary &A) {
-        m_Acm = A.m_Acm;
-        m_Amm = A.m_Amm.m_A;
-      }
-      inline bool AssertEqual(const Factor::Unitary &A, const int verobse = 1,
-                              const std::string str = "") const {
-        return m_Acm.AssertEqual(A.m_Acm, verobse, str + ".m_Acm") &&
-               m_Amm.AssertEqual(A.m_Amm.m_A, verobse, str + ".m_Amm");
-      }
-     public:
-      EigenMatrix6x9f m_Acm;
-      EigenMatrix9x9f m_Amm;
-    };
-    class Binary {
-     public:
-      inline void MakeZero() {
-        m_Acc.setZero();
-        m_Acm.setZero();
-        m_Amc.setZero();
-        m_Amm.setZero();
-      }
-      inline void operator = (const Factor::Binary &A) {
-        m_Acc = A.m_Acc;
-        m_Amc = A.m_Amc;
-#ifdef CFG_IMU_FULL_COVARIANCE
-        m_Acm = A.m_Acm;
-        m_Amm = A.m_Amm;
-#else
-        m_Acm = A.m_Acm.GetAlignedMatrix6x9f();
-        m_Amm = A.m_Amm.GetMatrix9x9f();
-#endif
-      }
-      inline void AssertEqual(const Factor::Binary &A, const int verbose = 1,
-                              const std::string str = "") const {
-        m_Acc.AssertEqual(A.m_Acc, verbose, str + ".m_Acc");
-        m_Amc.AssertEqual(A.m_Amc, verbose, str + ".m_Amc");
-#ifdef CFG_IMU_FULL_COVARIANCE
-        m_Acm.AssertEqual(A.m_Acm, verbose, str + ".m_Acm");
-        m_Amm.AssertEqual(A.m_Amm, verbose, str + ".m_Amm");
-#else
-        m_Acm.AssertEqual(A.m_Acm.GetAlignedMatrix6x9f(), verbose, str + ".m_Acm");
-        m_Amm.AssertEqual(A.m_Amm.GetMatrix9x9f(), verbose, str + ".m_Amm");
-#endif
-      }
-     public:
-      EigenMatrix6x6f m_Acc;
-      EigenMatrix6x9f m_Acm;
-      EigenMatrix9x6f m_Amc;
-      EigenMatrix9x9f m_Amm;
-    };
-   public:
-    inline EigenFactor() {}
-    inline EigenFactor(const Factor &A) { *this = A; }
-    inline void MakeZero() {
-      m_Au.MakeZero();
-      m_Ab.MakeZero();
-    }
-    inline void operator = (const Factor &A) {
-      m_Au = A.m_Au;
-      m_Ab = A.m_Ab;
-    }
-    inline void AssertEqual(const Factor &A, const int verbose = 1,
-                            const std::string str = "") const {
-      m_Au.AssertEqual(A.m_Au, verbose, str + ".m_Au");
-      m_Ab.AssertEqual(A.m_Ab, verbose, str + ".m_Ab");
-    }
-   public:
-    Unitary m_Au;
-    Binary m_Ab;
-  };
-#endif
+
 
   class Fix {
    public:

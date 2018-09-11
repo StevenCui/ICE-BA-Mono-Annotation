@@ -217,7 +217,8 @@ class GlobalBundleAdjustor : public MT::Thread {
       }
     }
     inline void DeleteKeyFrame(const int iKF,
-                               const std::vector<FRM::Measurement>::iterator *iZ = NULL) {
+                               const std::vector<FRM::Measurement>::iterator *iZ = NULL) 
+    {
       const std::vector<FRM::Measurement>::iterator _iZ = iZ ? *iZ : std::lower_bound(m_Zs.begin(),
                                                                                       m_Zs.end(), iKF);
       if (_iZ != m_Zs.end() && _iZ->m_iKF == iKF) {
@@ -857,60 +858,60 @@ class GlobalBundleAdjustor : public MT::Thread {
   // Callback function that will be triggered after GBA::run() finishes
   IBA::Solver::IbaCallback m_callback;
 
-#ifdef CFG_DEBUG_EIGEN
- protected:
-  class Track {
-   public:
-    class Measurement {
-     public:
-      inline Measurement() {}
-      inline Measurement(const int iKF, const int iz) : m_iKF(iKF), m_iz(iz) {}
-      inline bool operator < (const Measurement &z) const { return m_iKF < z.m_iKF; }
-     public:
-      int m_iKF, m_iz;
-      FTR::EigenFactor::DC m_adcz;
-    };
-   public:
-    inline void Initialize() { m_zs.resize(0); }
-   public:
-    std::vector<Measurement> m_zs;
-    FTR::EigenFactor::DDC m_Sadx;
-  };
- protected:
-  virtual void DebugGenerateTracks();
-  virtual void DebugUpdateFactors();
-  virtual void DebugUpdateFactorsFeature();
-  virtual void DebugUpdateFactorsPriorCameraPose();
-  virtual void DebugUpdateFactorsPriorCameraMotion();
-  virtual void DebugUpdateFactorsPriorDepth();
-  virtual void DebugUpdateFactorsIMU();
-  virtual void DebugUpdateFactorsFixOrigin();
-  virtual void DebugUpdateFactorsFixPositionZ();
-  virtual void DebugUpdateFactorsFixMotion();
-  virtual void DebugUpdateSchurComplement();
-  virtual void DebugSolveSchurComplement();
-  virtual void DebugSolveBackSubstitution();
-  virtual void DebugSolveGradientDescent();
-  virtual void DebugComputeReduction();
-  virtual void DebugComputeReductionFeature();
-  virtual void DebugComputeReductionPriorCameraPose();
-  virtual void DebugComputeReductionPriorCameraMotion();
-  virtual void DebugComputeReductionPriorDepth();
-  virtual void DebugComputeReductionIMU();
-  virtual void DebugComputeReductionFixOrigin();
-  virtual void DebugComputeReductionFixPositionZ();
-  virtual void DebugComputeReductionFixMotion();
- protected:
-  std::vector<std::vector<Track> > e_Xs;
-  std::vector<std::vector<ubyte> > e_M;
-  std::vector<std::vector<int> > e_I;
-  std::vector<EigenMatrix6x6f> e_SAccs, e_SMccs;
-  std::vector<EigenVector6f> e_Sbcs, e_Smcs, e_xcs, e_gcs, e_Agcs;
-  LA::AlignedVectorXf e_xds, e_gds, e_Agds;
-  std::vector<Camera::EigenFactor> e_SAcmsLM;
-  std::vector<EigenVector9f> e_Sbms, e_xms, e_gms, e_Agms;
-  float e_dFp;
-#endif
+// #ifdef CFG_DEBUG_EIGEN
+//  protected:
+//   class Track {
+//    public:
+//     class Measurement {
+//      public:
+//       inline Measurement() {}
+//       inline Measurement(const int iKF, const int iz) : m_iKF(iKF), m_iz(iz) {}
+//       inline bool operator < (const Measurement &z) const { return m_iKF < z.m_iKF; }
+//      public:
+//       int m_iKF, m_iz;
+//       FTR::EigenFactor::DC m_adcz;
+//     };
+//    public:
+//     inline void Initialize() { m_zs.resize(0); }
+//    public:
+//     std::vector<Measurement> m_zs;
+//     FTR::EigenFactor::DDC m_Sadx;
+//   };
+//  protected:
+//   virtual void DebugGenerateTracks();
+//   virtual void DebugUpdateFactors();
+//   virtual void DebugUpdateFactorsFeature();
+//   virtual void DebugUpdateFactorsPriorCameraPose();
+//   virtual void DebugUpdateFactorsPriorCameraMotion();
+//   virtual void DebugUpdateFactorsPriorDepth();
+//   virtual void DebugUpdateFactorsIMU();
+//   virtual void DebugUpdateFactorsFixOrigin();
+//   virtual void DebugUpdateFactorsFixPositionZ();
+//   virtual void DebugUpdateFactorsFixMotion();
+//   virtual void DebugUpdateSchurComplement();
+//   virtual void DebugSolveSchurComplement();
+//   virtual void DebugSolveBackSubstitution();
+//   virtual void DebugSolveGradientDescent();
+//   virtual void DebugComputeReduction();
+//   virtual void DebugComputeReductionFeature();
+//   virtual void DebugComputeReductionPriorCameraPose();
+//   virtual void DebugComputeReductionPriorCameraMotion();
+//   virtual void DebugComputeReductionPriorDepth();
+//   virtual void DebugComputeReductionIMU();
+//   virtual void DebugComputeReductionFixOrigin();
+//   virtual void DebugComputeReductionFixPositionZ();
+//   virtual void DebugComputeReductionFixMotion();
+//  protected:
+//   std::vector<std::vector<Track> > e_Xs;
+//   std::vector<std::vector<ubyte> > e_M;
+//   std::vector<std::vector<int> > e_I;
+//   std::vector<EigenMatrix6x6f> e_SAccs, e_SMccs;
+//   std::vector<EigenVector6f> e_Sbcs, e_Smcs, e_xcs, e_gcs, e_Agcs;
+//   LA::AlignedVectorXf e_xds, e_gds, e_Agds;
+//   std::vector<Camera::EigenFactor> e_SAcmsLM;
+//   std::vector<EigenVector9f> e_Sbms, e_xms, e_gms, e_Agms;
+//   float e_dFp;
+// #endif
 };
 
 #endif

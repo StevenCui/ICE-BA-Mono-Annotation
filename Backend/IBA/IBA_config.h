@@ -29,13 +29,13 @@ typedef float PCG_TYPE;
 #define CFG_CAMERA_PRIOR_DOUBLE
 //#define CFG_CAMERA_PRIOR_REORDER
 //#define CFG_HANDLE_SCALE_JUMP
-#define CFG_CHECK_REPROJECTION
+//#define CFG_CHECK_REPROJECTION
 
-#define CFG_STEREO
-#define CFG_SERIAL
-#define CFG_VERBOSE
-#define CFG_HISTORY
-#define CFG_GROUND_TRUTH
+//#define CFG_STEREO 
+//#define CFG_SERIAL //支持多线程串行，保证每次运行结果一致方便debug
+//#define CFG_VERBOSE //输出详细log
+#define CFG_HISTORY //保存每帧的各种结果，用于后续分析
+#define CFG_GROUND_TRUTH //有GT的话load GT，也是用于分析，不改变运行结果
 #ifdef WIN32
 //#define CFG_DEBUG
 #else

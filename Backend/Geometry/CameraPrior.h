@@ -849,9 +849,7 @@ inline bool EigenAssertEqual(const EigenMatrixXf &e_A, const CC &A,
 }  // namespace Matrix
 
 class Pose {
-
  public:
-
   class Error {
    public:
     inline Error() {}
@@ -927,12 +925,7 @@ class Pose {
         m_g = g;
         Je.m_J.m_Jc.GetTranspose(m_JcT);
         const int N = m_JcT.Size(), _N = N + 1;
-#ifdef CFG_DEBUG
-        if (m_g) {
-          UT_ASSERT(Arc.Size() == N);
-        }
-        UT_ASSERT(Acc.GetRows() == N && Acc.GetColumns() == N);
-#endif
+
         m_JTAc0.Resize(N);
         m_Aec.Resize(N);
         if (m_g) {
@@ -1011,9 +1004,7 @@ class Pose {
       inline void Get(const LA::AlignedMatrix2x3f &Jr, const xp128f &w, const Element::R &br,
                       const Vector::C &bc, Matrix::CC *A, Vector::C *b) const {
         const int N = m_JcT.Size(), _N = N + 1;
-#ifdef CFG_DEBUG
-        UT_ASSERT(bc.Size() == N);
-#endif
+
         A->Resize(_N, _N, true);
         b->Resize(_N);
         Matrix::CC &_A = *A;

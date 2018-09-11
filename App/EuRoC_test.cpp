@@ -281,12 +281,12 @@ bool create_iba_frame(const vector<cv::KeyPoint>& kps_l,
     mp_mea.idx = kp_it_l->class_id;
     mp_mea.x.x[0] = kp_it_l->pt.x;
     mp_mea.x.x[1] = kp_it_l->pt.y;
-    mp_mea.right = false;
+    // mp_mea.right = false;
     CF.zs.push_back(mp_mea);
     if (kp_it_r != kps_r.cend() && kp_it_r->class_id == kp_it_l->class_id) {
       mp_mea.x.x[0] = kp_it_r->pt.x;
       mp_mea.x.x[1] = kp_it_r->pt.y;
-      mp_mea.right = true;
+      // mp_mea.right = true;
       CF.zs.push_back(mp_mea);
       ++kp_it_r;
     }
@@ -320,13 +320,13 @@ bool create_iba_frame(const vector<cv::KeyPoint>& kps_l,
       mp_mea.iFrm = iba_iFrm;
       mp_mea.x.x[0] = kp_it_l->pt.x;
       mp_mea.x.x[1] = kp_it_l->pt.y;
-      mp_mea.right = false;
+      // mp_mea.right = false;
       mp.zs.push_back(mp_mea);
 
       if (kp_it_r != kps_r.cend() && kp_it_r->class_id == kp_it_l->class_id) {
         mp_mea.x.x[0] = kp_it_r->pt.x;
         mp_mea.x.x[1] = kp_it_r->pt.y;
-        mp_mea.right = true;
+        // mp_mea.right = true;
         mp.zs.push_back(mp_mea);
         kp_it_r++;
       } else {
@@ -343,6 +343,9 @@ bool create_iba_frame(const vector<cv::KeyPoint>& kps_l,
 
 
 int main(int argc, char** argv) {
+  #ifdef CFG_STEREO
+  std::cout<<"CFG_STEREO is define!"<<std::endl;
+  #endif
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, true);
   google::InstallFailureSignalHandler();

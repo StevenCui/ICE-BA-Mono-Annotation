@@ -25,24 +25,12 @@ class Source {
  public:
   inline void Set(const float *x) {
     m_x.Set(x);
-#ifdef CFG_STEREO
-    m_xr.Invalidate();
-#endif
   }
   inline bool operator == (const Source &x) const {
-    return m_x == x.m_x
-#ifdef CFG_STEREO
-        && m_xr == x.m_xr
-        && m_Wr == x.m_Wr
-#endif
-        ;
+    return m_x == x.m_x;
   }
  public:
   Point2D m_x;
-#ifdef CFG_STEREO
-  Point2D m_xr;
-  LA::SymmetricMatrix2x2f m_Wr;
-#endif
 };
 
 class Measurement {
@@ -60,34 +48,18 @@ class Measurement {
  public:
   inline Measurement() {}
   inline bool operator == (const Source &x) const {
-    return m_z == x.m_x
-#ifdef CFG_STEREO
-        && m_zr == x.m_xr && m_Wr == x.m_Wr
-#endif
-        ;
+    return m_z == x.m_x;
   }
   inline bool operator == (const Measurement &z) const {
     return m_ix == z.m_ix
-        && m_z == z.m_z && m_W == z.m_W
-#ifdef CFG_STEREO
-        && m_zr == z.m_zr && m_Wr ==z.m_Wr
-#endif
-        ;
+        && m_z == z.m_z && m_W == z.m_W;
   }
   inline bool operator < (const int ix) const { return m_ix < ix; }
   inline bool operator < (const Measurement &z) const { return m_ix < z.m_ix; }
-  inline void Set(const int ix, const Point2D &z, const LA::SymmetricMatrix2x2f &W
-#ifdef CFG_STEREO
-                , const Point2D &zr, const LA::SymmetricMatrix2x2f &Wr
-#endif
-                ) {
+  inline void Set(const int ix, const Point2D &z, const LA::SymmetricMatrix2x2f &W) {
     m_ix = ix;
     m_z = z;
     m_W = W;
-#ifdef CFG_STEREO
-    m_zr = zr;
-    m_Wr = Wr;
-#endif
   }
   inline bool Valid() const { return m_ix >= 0; }
   inline bool Invalid() const { return m_ix == -1; }
@@ -96,10 +68,6 @@ class Measurement {
   union { int m_iKF, m_id, m_ix; };
   Point2D m_z;
   LA::SymmetricMatrix2x2f m_W;
-#ifdef CFG_STEREO
-  Point2D m_zr;
-  LA::SymmetricMatrix2x2f m_Wr;
-#endif
 };
 
 class ESError : public LA::Vector2f {
@@ -203,7 +171,8 @@ class Error {
 #ifdef CFG_STEREO
   LA::Vector2f m_er;
 #endif
-};
+};//END FOR ERROR
+
 namespace ErrorJacobian {
 class D {
  public:
@@ -241,11 +210,13 @@ class XC : public X {
   LA::AlignedMatrix2x6f m_Jc;
 };
 }  // namespace ErrorJacobian
+
 class Reduction {
  public:
   Error m_e;
   float m_F, m_dF;
 };
+
 namespace Factor {
 class DD {
  public:
@@ -308,14 +279,15 @@ class DD {
   }
  public:
   float m_a, m_b;
-};
+}; //END FOR DD
+
 class XX {
  public:
   union {
     struct { LA::Matrix3x3f m_A; LA::Vector3f m_b; };
     xp128f m_data[3];
   };
-};
+}; //END FOR XX
 class DC : public LA::Vector6f {
  public:
   static inline DC Get(const float *a) { DC _a; _a.Set(a); return _a; }
@@ -339,7 +311,8 @@ class DC : public LA::Vector6f {
   inline bool AssertZero(const int verbose = 1, const std::string str = "") const {
     return LA::Vector6f::AssertZero(verbose, str, -1.0f, -1.0f);
   }
-};
+};//END FOR DC
+
 class DDC {
  public:
   inline DDC() {}
@@ -462,7 +435,8 @@ class DDC {
     LA::AlignedVector7f m_adcd;
     xp128f m_data[2];
   };
-};
+}; //END FOR DDC
+
 class Stereo {
  public:
   class U {
@@ -490,14 +464,16 @@ class Stereo {
   ErrorJacobian::D m_Je;
   float m_w, m_F;
   DD m_add;
-};
+};//END FOR STEREO
+
 class Depth : public Stereo {
  public:
 #ifdef CFG_STEREO
   ErrorJacobian::D m_Jer;
   float m_wr;
 #endif
-};
+}; //END FOR DEPTH
+
 namespace FixSource {
 namespace Source {
 class A {
@@ -508,7 +484,7 @@ class A {
   inline void MakeZero() { m_Sadd.MakeZero(); }
  public:
   DD m_Sadd;
-};
+};//END FOR A
 class M {
  public:
   inline void MakeZero() { m_mdd.MakeZero(); }
@@ -516,8 +492,9 @@ class M {
   inline float BackSubstitute() const { return m_mdd.m_b; }
  public:
   DD m_mdd;
-};
+};//END FOR M
 }  // namespace Source
+
 class L {
  public:
   ErrorJacobian::DCZ m_Je;
@@ -534,7 +511,8 @@ class L {
     };
     xp128f m_data;
   };
-};
+};//END FOR L
+
 class A1 {
  public:
   inline void operator *= (const float s) { m_adczA *= s; }
@@ -552,7 +530,8 @@ class A1 {
     DC m_adcz;
     LA::AlignedVector6f m_adczA;
   };
-};
+};//END FOR A1
+
 class A2 {
  public:
   union {
@@ -562,7 +541,8 @@ class A2 {
     };
     xp128f m_data[8];
   };
-};
+};//END FOR A2
+
 class A3 : public DDC {
  public:
   inline A3() {}
@@ -571,17 +551,20 @@ class A3 : public DDC {
     m_adc = adc;
   }
   inline A3(const DDC &A) : DDC(A) {}
-};
+};////END FOR A3
+
 class M1 : public A1 {
  public:
   inline float BackSubstitute(const LA::AlignedVector6f &xc) const {
     return m_adczA.Dot(xc);
   }
-};
+};//END FOR M1
+
 class M2 {
  public:
   Camera::Factor::Unitary::CC m_Mczz;
-};
+};//END FOR M2
+
 class U {
  public:
   inline void Initialize() {
@@ -606,7 +589,8 @@ class U {
   LA::AlignedMatrix2x8f m_Je;
   LA::AlignedMatrix7x8f m_A;
   LA::SymmetricMatrix2x2f m_W;
-};
+};//END FOR U
+
 inline void Marginalize(const xp128f &mdd, const A1 &A, M1 *M) {
   A.m_adczA.GetScaled(mdd, M->m_adczA);
 }
@@ -622,7 +606,8 @@ inline void Marginalize(const float Smdd, const A3 &A1, const A3 &A2,
   Smdcz2->Update();
   LA::AlignedMatrix6x6f::abT(A1.m_adc, *Smdcz2, *Mczm);
 }
-}  // namespace FixSource
+}  //END FOR FixSource
+
 namespace Full {
 namespace Source {
 class A {
@@ -630,7 +615,8 @@ class A {
   inline void MakeZero() { m_Sadx.MakeZero(); }
  public:
   DDC m_Sadx;
-};
+};////END FOR A
+
 class M1 {
  public:
   inline void MakeZero() { memset(this, 0, sizeof(M1)); }
@@ -644,40 +630,34 @@ class M1 {
   }
  public:
   DDC m_mdx;
-};
+};//END FOR M1
+
 class M2 {
  public:
   inline void MakeZero() { memset(this, 0, sizeof(M2)); }
  public:
   Camera::Factor::Unitary::CC m_Mcxx;
-};
+};//END FOR M2
+
 inline void Marginalize(const xp128f &mdd, const DDC &Sadx, M1 *_M1, M2 *_M2) {
   Sadx.GetScaled(mdd, _M1->m_mdx);
-#ifdef CFG_DEBUG
-//#if 0
-  UT_ASSERT(mdd[0] == 1.0f / Sadx.m_add.m_a);
-#endif
   _M1->m_mdx.m_add.m_a = mdd[0];
   DDC::aTb(_M1->m_mdx.m_adc, Sadx, _M2->m_Mcxx);
 }
-}  // namespace Source
+}  //END FOR Source
+
 class L {
  public:
   ErrorJacobian::DCXZ m_Je;
-#ifdef CFG_STEREO
-  ErrorJacobian::DCXZ m_Jer;
-#endif
   union {
     struct {
       float m_w;
-#ifdef CFG_STEREO
-      float m_wr;
-#endif
       float m_F;
     };
     xp128f m_data;
   };
-};
+};//END FOR L
+
 class A1 : public FixSource::A1 {};
 class A2 {
  public:
@@ -685,12 +665,14 @@ class A2 {
   Camera::Factor::Unitary::CC m_Acxx;
   Camera::Factor::Binary::CC m_Acxz;
   Camera::Factor::Unitary::CC m_Aczz;
-};
+};//END FOR A2
+
 class M1 : public FixSource::M1 {};
 class M2 : public FixSource::M2 {
  public:
   Camera::Factor::Binary::CC m_Mcxz;
-};
+};//END FOR M2
+
 class U {
  public:
   inline void Initialize() { m_A.MakeZero(); }
@@ -713,7 +695,7 @@ class U {
   LA::AlignedMatrix2x14f m_Je;
   LA::AlignedMatrix13x14f m_A;
   LA::SymmetricMatrix2x2f m_W;
-};
+};//END FOR U
 inline void Marginalize(const xp128f &mdd, const Source::M1 &Mx, const A1 &Az, M1 *Mz1,
                         M2 *Mz2, LA::ProductVector6f *adcz) {
 #ifdef CFG_DEBUG
@@ -734,47 +716,15 @@ static inline void Marginalize(const M1 &Mz, const LA::ProductVector6f &adcz,
 }  // namespace Full
 }  // namespace Factor
 
-#ifdef CFG_DEBUG
-inline void DebugSetMeasurement(const Rigid3D &T12, const Source &x1,
-                                const Depth::InverseGaussian &d1, Point2D &z2) {
-  UT_ASSERT(z2.Valid());
-  d1.Project(T12, x1.m_x, z2);
-}
-inline void DebugSetMeasurement(const Rigid3D *T12, const Source &x1,
-                                const Depth::InverseGaussian &d1, Measurement &z2) {
-#ifdef CFG_STEREO
-  if (z2.m_z.Valid()) {
-    DebugSetMeasurement(T12[0], x1, d1, z2.m_z);
-  }
-  if (z2.m_zr.Valid()) {
-    DebugSetMeasurement(T12[1], x1, d1, z2.m_zr);
-  }
-#else
-  DebugSetMeasurement(*T12, x1, d1, z2.m_z);
-#endif
-}
-#endif
 inline void GetError(const Rigid3D &T12, const Source &x1, const Depth::InverseGaussian &d1,
                      const Point2D &z2, LA::Vector2f &e2) {
-#ifdef CFG_DEBUG
-  UT_ASSERT(z2.Valid());
-#endif
   d1.Project(T12, x1.m_x, e2);
   e2 -= z2;
 }
 inline void GetError(const Rigid3D *T12, const Source &x1,
                      const Depth::InverseGaussian &d1, const Measurement &z2,
                      Error &e2) {
-#ifdef CFG_STEREO
-  if (z2.m_z.Valid()) {
-    GetError(T12[0], x1, d1, z2.m_z, e2.m_e);
-  }
-  if (z2.m_zr.Valid()) {
-    GetError(T12[1], x1, d1, z2.m_zr, e2.m_er);
-  }
-#else
   GetError(*T12, x1, d1, z2.m_z, e2.m_e);
-#endif
 }
 inline Error GetError(const Rigid3D *T12, const Source &x1,
                       const Depth::InverseGaussian &d1, const Measurement &z2) {
@@ -788,10 +738,6 @@ inline void GetError(const ErrorJacobian::D &Je, const float xd, LA::Vector2f &e
 }
 inline void GetError(const ErrorJacobian::DCZ &Je, const LA::ProductVector6f *xcz,
                      const float *xd, LA::Vector2f &e) {
-#ifdef CFG_DEBUG
-  UT_ASSERT(xcz || xd);
-  UT_ASSERT(Je.Valid());
-#endif
   e = Je.m_e;
   if (xcz) {
     LA::AlignedMatrix2x6f::AddAbTo(Je.m_Jcz, *xcz, e);
@@ -802,10 +748,6 @@ inline void GetError(const ErrorJacobian::DCZ &Je, const LA::ProductVector6f *xc
 }
 inline void GetError(const ErrorJacobian::DCXZ &Je, const LA::ProductVector6f *xcx,
                      const LA::ProductVector6f *xcz, const float *xd, LA::Vector2f &e) {
-#ifdef CFG_DEBUG
-  UT_ASSERT(xcx || xcz || xd);
-  UT_ASSERT(Je.Valid());
-#endif
   if (xcz || xd) {
     GetError(Je, xcz, xd, e);
   } else {
@@ -816,80 +758,31 @@ inline void GetError(const ErrorJacobian::DCXZ &Je, const LA::ProductVector6f *x
   }
 }
 inline void GetError(const Factor::Depth &A, const float xd, Error &e) {
-#ifdef CFG_STEREO
-  if (A.m_Je.Valid()) {
-    GetError(A.m_Je, xd, e.m_e);
-  }
-  if (A.m_Jer.Valid()) {
-    GetError(A.m_Jer, xd, e.m_er);
-  }
-#else
   GetError(A.m_Je, xd, e.m_e);
-#endif
+
 }
 inline void GetError(const Factor::FixSource::L &L, const LA::ProductVector6f *xcz,
                      const float *xd, Error &e) {
-#ifdef CFG_DEBUG
-  UT_ASSERT(xcz || xd);
-#endif
-#ifdef CFG_STEREO
-  if (L.m_Je.Valid()) {
-    GetError(L.m_Je, xcz, xd, e.m_e);
-  } else {
-    e.m_e.Invalidate();
-  }
-  if (L.m_Jer.Valid()) {
-    GetError(L.m_Jer, xcz, xd, e.m_er);
-  } else {
-    e.m_er.Invalidate();
-  }
-#else
   GetError(L.m_Je, xcz, xd, e.m_e);
-#endif
 }
 inline void GetError(const Factor::Full::L &L, const LA::ProductVector6f *xcx,
                      const LA::ProductVector6f *xcz, const float *xd, Error &e) {
-#ifdef CFG_DEBUG
-  UT_ASSERT(xcx || xcz || xd);
-#endif
-#ifdef CFG_STEREO
-  if (L.m_Je.Valid()) {
-    GetError(L.m_Je, xcx, xcz, xd, e.m_e);
-  }
-  if (L.m_Jer.Valid()) {
-    GetError(L.m_Jer, xcx, xcz, xd, e.m_er);
-  }
-#else
   GetError(L.m_Je, xcx, xcz, xd, e.m_e);
-#endif
 }
 
 inline void GetErrorJacobian(const Rigid3D &T12, const Source &x1, const Depth::InverseGaussian &d1,
                              const Rigid3D &T2, const Point2D &z2, ErrorJacobian::D &Je2
-#ifdef CFG_STEREO
-                           , const Point3D *br = NULL
-#endif
                            ) {
-#ifdef CFG_DEBUG
-  UT_ASSERT(z2.Valid());
-#endif
   d1.Project(T12, x1.m_x, Je2.m_e, Je2.m_Jd);
   Je2.m_e -= z2;
 }
 inline void GetErrorJacobian(const Rigid3D &T12, const Source &x1, const Depth::InverseGaussian &d1,
                              const Rigid3D &T2, const Point2D &z2, ErrorJacobian::DCZ &Je2
-#ifdef CFG_STEREO
-                           , const Point3D *br = NULL
-#endif
                            ) {
-#ifdef CFG_DEBUG
-  UT_ASSERT(z2.Valid());
-#endif
+
   float d2;
   d1.Project(T12, x1.m_x, Je2.m_e, d2, Je2.m_Jd);
-  //const bool vp = fabs(d2) > DEPTH_EPSILON;
-  //const bool vp = fabs(d2) > DEPTH_PROJECTION_MIN;
-  //const bool vp = d2 > DEPTH_PROJECTION_MIN;
+
   const bool vp = d2 > DEPTH_PROJECTION_MIN && d2 < DEPTH_PROJECTION_MAX;
   if (vp) {
     const xp128f _d2 = xp128f::get(d2);
@@ -898,18 +791,6 @@ inline void GetErrorJacobian(const Rigid3D &T12, const Source &x1, const Depth::
     Je2.m_Jcz.m_00_01_02_03() = _d2 * (_y2 * T2.r_20_21_22_x() - T2.r_10_11_12_x());
     Je2.m_Jcz.m_00_01_02_03().vstore_unalign(Je2.m_Jcz[1]);
     Je2.m_Jcz.m_00_01_02_03() = _d2 * (_x2 * T2.r_20_21_22_x() - T2.r_00_01_02_x());
-#ifdef CFG_STEREO
-    if (br) {
-      const LA::AlignedVector3f bd2 = *br * _d2;
-      const float x = Je2.m_e.x() - bd2.x(), y = Je2.m_e.y() - bd2.y(), z = 1.0f - bd2.z();
-      Je2.m_Jcz[0][3] = Je2.m_e.x() * y;
-      Je2.m_Jcz[0][4] = -(Je2.m_e.x() * x + z);
-      Je2.m_Jcz[0][5] = y;
-      Je2.m_Jcz[1][3] = Je2.m_e.y() * y + z;
-      Je2.m_Jcz[1][4] = -Je2.m_e.y() * x;
-      Je2.m_Jcz[1][5] = -x;
-    } else
-#endif
     {
       Je2.m_Jcz[0][3] = Je2.m_e.x() * Je2.m_e.y();
       Je2.m_Jcz[0][4] = -(Je2.m_e.x() * Je2.m_e.x() + 1.0f);
@@ -926,21 +807,14 @@ inline void GetErrorJacobian(const Rigid3D &T12, const Source &x1, const Depth::
   }
   Je2.m_e -= z2;
 }
+//GBA::UpdateFactorsFeature
 inline void GetErrorJacobian(const Rigid3D &T12, const Source &x1, const Depth::InverseGaussian &d1,
                              const Rigid3D &T2, const Point2D &z2, ErrorJacobian::DCXZ &Je2
-#ifdef CFG_STEREO
-                           , const Point3D *br = NULL
-#endif
                            ) {
-#ifdef CFG_DEBUG
-  UT_ASSERT(z2.Valid());
-#endif
   float d12, d2;
   LA::AlignedVector3f t;
   d1.Project(T12, x1.m_x, Je2.m_e, d12, d2, Je2.m_Jd, t);
-  //const bool vp = fabs(d2) > DEPTH_EPSILON;
-  //const bool vp = fabs(d2) > DEPTH_PROJECTION_MIN;
-  //const bool vp = d2 > DEPTH_PROJECTION_MIN;
+
   const bool vp = d2 > DEPTH_PROJECTION_MIN && d2 < DEPTH_PROJECTION_MAX;
   if (vp) {
     const xp128f _d12 = xp128f::get(d12);
@@ -951,17 +825,7 @@ inline void GetErrorJacobian(const Rigid3D &T12, const Source &x1, const Depth::
     Je2.m_Jcx.m_00_01_02_03() = _d2 * (T2.r_00_01_02_x() - _x2 * T2.r_20_21_22_x());
     Je2.m_Jcz.m_00_01_02_03() = _d2 * (T2.r_10_11_12_x() - _y2 * T2.r_20_21_22_x());
     Je2.m_Jcz.m_00_01_02_03().vstore_unalign(Je2.m_Jcx[1]);
-#if 0
-    Je2.m_Jcz.m_04_05_10_11() = _d12 * (_x2 * T12.r_20_21_22_x() - T12.r_00_01_02_x());
-    Je2.m_Jcz.m_12_13_14_15() = _d12 * (_y2 * T12.r_20_21_22_x() - T12.r_10_11_12_x());
 
-    Je2.m_Jcx[0][3] = Je2.m_Jcz[0][5] - Je2.m_Jcz[1][0] * x1.m_x.y();
-    Je2.m_Jcx[0][4] = Je2.m_Jcz[1][0] * x1.m_x.x() - Je2.m_Jcz[0][4];
-    Je2.m_Jcx[0][5] = Je2.m_Jcz[0][4] * x1.m_x.y() - Je2.m_Jcz[0][5] * x1.m_x.x();
-    Je2.m_Jcx[1][3] = Je2.m_Jcz[1][3] - Je2.m_Jcz[1][4] * x1.m_x.y();
-    Je2.m_Jcx[1][4] = Je2.m_Jcz[1][4] * x1.m_x.x() - Je2.m_Jcz[1][2];
-    Je2.m_Jcx[1][5] = Je2.m_Jcz[1][2] * x1.m_x.y() - Je2.m_Jcz[1][3] * x1.m_x.x();
-#else
     t *= _d12;
     Je2.m_Jcx[0][3] = -Je2.m_e.x() * t.y();
     Je2.m_Jcx[0][4] = Je2.m_e.x() * t.x() + t.z();
@@ -971,22 +835,10 @@ inline void GetErrorJacobian(const Rigid3D &T12, const Source &x1, const Depth::
     Je2.m_Jcx[1][5] = t.x();
     LA::AlignedMatrix3x3f::aTB(&Je2.m_Jcx[0][3], T2);
     LA::AlignedMatrix3x3f::aTB(&Je2.m_Jcx[1][3], T2);
-#endif
+
     const xp128f zero = xp128f::get(0.0f);
     (zero - Je2.m_Jcz.m_00_01_02_03()).vstore_unalign(Je2.m_Jcz[1]);
     Je2.m_Jcz.m_00_01_02_03() = zero - Je2.m_Jcx.m_00_01_02_03();
-#ifdef CFG_STEREO
-    if (br) {
-      const LA::AlignedVector3f bd2 = *br * _d2;
-      const float x = Je2.m_e.x() - bd2.x(), y = Je2.m_e.y() - bd2.y(), z = 1.0f - bd2.z();
-      Je2.m_Jcz[0][3] = Je2.m_e.x() * y;
-      Je2.m_Jcz[0][4] = -(Je2.m_e.x() * x + z);
-      Je2.m_Jcz[0][5] = y;
-      Je2.m_Jcz[1][3] = Je2.m_e.y() * y + z;
-      Je2.m_Jcz[1][4] = -Je2.m_e.y() * x;
-      Je2.m_Jcz[1][5] = -x;
-    } else
-#endif
     {
       Je2.m_Jcz[0][3] = Je2.m_e.x() * Je2.m_e.y();
       Je2.m_Jcz[0][4] = -(Je2.m_e.x() * Je2.m_e.x() + 1.0f);
@@ -1009,40 +861,7 @@ template<int ME_FUNCTION, class LINEARIZATION, class FACTOR>
 inline void GetFactor(const float w, const Rigid3D *T12, const Source &x1,
                       const Depth::InverseGaussian &d1, const Rigid3D &T2,
                       const Measurement &z2, LINEARIZATION *L, FACTOR *A,
-#ifdef CFG_STEREO
-                      const Point3D &br,
-#endif
                       const float r2Max = FLT_MAX) {
-#ifdef CFG_STEREO
-  L->m_F = 0.0f;
-  A->Initialize();
-  if (z2.m_z.Valid()) {
-    GetErrorJacobian(T12[0], x1, d1, T2, z2.m_z, L->m_Je);
-    const float r2 = LA::SymmetricMatrix2x2f::MahalanobisDistance(z2.m_W, L->m_Je.m_e);
-    if (r2 > r2Max) {
-      L->m_w = 0.0f;
-    } else {
-      L->m_w = w * ME::Weight<ME_FUNCTION>(r2);
-    }
-    L->m_F += L->m_w * r2;
-    A->Accumulate(L->m_Je, L->m_w, z2.m_W);
-  } else {
-    L->m_Je.Invalidate();
-  }
-  if (z2.m_zr.Valid()) {
-    GetErrorJacobian(T12[1], x1, d1, T2, z2.m_zr, L->m_Jer, &br);
-    const float r2 = LA::SymmetricMatrix2x2f::MahalanobisDistance(z2.m_Wr, L->m_Jer.m_e);
-    if (r2 > r2Max) {
-      L->m_wr = 0.0f;
-    } else {
-      L->m_wr = w * ME::Weight<ME_FUNCTION>(r2);
-    }
-    L->m_F += L->m_wr * r2;
-    A->Accumulate(L->m_Jer, L->m_wr, z2.m_Wr);
-  } else {
-    L->m_Jer.Invalidate();
-  }
-#else
   GetErrorJacobian(*T12, x1, d1, T2, z2.m_z, L->m_Je);
   const float r2 = LA::SymmetricMatrix2x2f::MahalanobisDistance(z2.m_W, L->m_Je.m_e);
   if (r2 > r2Max) {
@@ -1052,74 +871,49 @@ inline void GetFactor(const float w, const Rigid3D *T12, const Source &x1,
   }
   L->m_F = L->m_w * r2;
   A->Set(L->m_Je, L->m_w, z2.m_W);
-#endif
 }
+
 template<int ME_FUNCTION>
 inline void GetFactor(const float w, const Rigid3D *T12, const Source &x1,
                       const Depth::InverseGaussian &d1, const Rigid3D &T2,
                       const Measurement &z2, Factor::Depth *A, Factor::Depth::U *U,
-#ifdef CFG_STEREO
-                      const Point3D &br,
-#endif
-                      const float r2Max = FLT_MAX) {
-  GetFactor<ME_FUNCTION, Factor::Depth, Factor::Depth::U>(w, T12, x1, d1, T2, z2, A, U,
-#ifdef CFG_STEREO
-                                                          br,
-#endif
-                                                          r2Max);
+                      const float r2Max = FLT_MAX) 
+{
+  GetFactor<ME_FUNCTION, Factor::Depth, Factor::Depth::U>(
+    w, T12, x1, d1, T2, z2, A, U,r2Max);
   A->m_add = U->m_A;
 }
+
 template<int ME_FUNCTION>
 inline void GetFactor(const float w, const Rigid3D *T12, const Source &x1,
                       const Depth::InverseGaussian &d1, const Rigid3D &T2,
                       const Measurement &z2, Factor::FixSource::L *L,
                       Factor::FixSource::A1 *A1, Factor::FixSource::A2 *A2,
                       Factor::FixSource::U *U,
-#ifdef CFG_STEREO
-                      const Point3D &br,
-#endif
-                      const float r2Max = FLT_MAX) {
-  GetFactor<ME_FUNCTION, Factor::FixSource::L, Factor::FixSource::U>(w, T12, x1, d1, T2, z2, L, U,
-#ifdef CFG_STEREO
-                                                                     br,
-#endif
-                                                                     r2Max);
+                      const float r2Max = FLT_MAX) 
+{
+  GetFactor<ME_FUNCTION, Factor::FixSource::L, Factor::FixSource::U>(
+    w, T12, x1, d1, T2, z2, L, U,r2Max);
   U->m_A.Get(A2->m_add.m_a, A1->m_adcz, A2->m_add.m_b, A2->m_Aczz.m_A, A2->m_Aczz.m_b);
 }
+
 template<int ME_FUNCTION>
 inline void GetFactor(const float w, const Rigid3D *T12, const Source &x1,
                       const Depth::InverseGaussian &d1, const Rigid3D &T2,
                       const Measurement &z2, Factor::Full::L *L, Factor::Full::A1 *A1,
                       Factor::Full::A2 *A2, Factor::Full::U *U,
-#ifdef CFG_STEREO
-                      const Point3D &br,
-#endif
-                      const float r2Max = FLT_MAX) {
-  GetFactor<ME_FUNCTION, Factor::Full::L, Factor::Full::U>(w, T12, x1, d1, T2, z2, L, U,
-#ifdef CFG_STEREO
-                                                           br,
-#endif
-                                                           r2Max);
+                      const float r2Max = FLT_MAX) 
+{
+  GetFactor<ME_FUNCTION, Factor::Full::L, Factor::Full::U>(
+    w, T12, x1, d1, T2, z2, L, U,r2Max);
   U->m_A.Get(A2->m_adx.m_add.m_a, A2->m_adx.m_adc, A1->m_adcz, A2->m_adx.m_add.m_b,
              A2->m_Acxx.m_A, A2->m_Acxz, A2->m_Acxx.m_b, A2->m_Aczz.m_A, A2->m_Aczz.m_b);
 }
 
 template<class LINEARIZATION>
 inline float GetCost(const LINEARIZATION &L, const Measurement &z, const Error &e) {
-#ifdef CFG_STEREO
-  float F = 0.0f;
-  if (z.m_z.Valid()) {
-    const float r2 = LA::SymmetricMatrix2x2f::MahalanobisDistance(z.m_W, e.m_e);
-    F += L.m_w * r2;
-  }
-  if (z.m_zr.Valid()) {
-    const float r2 = LA::SymmetricMatrix2x2f::MahalanobisDistance(z.m_Wr, e.m_er);
-    F += L.m_wr * r2;
-  }
-#else
   const float r2 = LA::SymmetricMatrix2x2f::MahalanobisDistance(z.m_W, e.m_e);
   const float F = L.m_w * r2;
-#endif
   return F;
 }
 inline float GetCost(const Factor::Depth &A, const Measurement &z, const float xd, Error &e) {
@@ -1165,455 +959,5 @@ inline void GetReduction(const Factor::Full::L &L, const Rigid3D *T12, const Sou
   Rp.m_dF = L.m_F - (Rp.m_F = GetCost(L, z2, Rp.m_e));
 }
 
-#ifdef CFG_STEREO
-#ifdef CFG_DEBUG
-inline void DebugSetMeasurement(const Point3D &br, const Depth::InverseGaussian &d, Source &x) {
-  UT_ASSERT(x.m_xr.Valid());
-  d.Project(br, x.m_x, x.m_xr);
-}
-#endif
-inline void GetError(const Point3D &br, const Depth::InverseGaussian &d, const Source &x,
-                     LA::Vector2f &e) {
-  d.Project(br, x.m_x, e);
-  e -= x.m_xr;
-}
-inline void GetError(const Factor::Stereo &A, const float xd, LA::Vector2f &e) {
-  GetError(A.m_Je, xd, e);
-}
-inline void GetErrorJacobian(const Point3D &br, const Depth::InverseGaussian &d, const Source &x,
-                             ErrorJacobian::D &Je) {
-  d.Project(br, x.m_x, Je.m_e, Je.m_Jd);
-  Je.m_e -= x.m_xr;
-}
-template<int ME_FUNCTION>
-inline void GetFactor(const float w, const Point3D &br, const Depth::InverseGaussian &d, const Source &x,
-                      Factor::Stereo *A, Factor::Stereo::U *U) {
-  GetErrorJacobian(br, d, x, A->m_Je);
-  const float r2 = LA::SymmetricMatrix2x2f::MahalanobisDistance(x.m_Wr, A->m_Je.m_e);
-  A->m_w = w * ME::Weight<ME_FUNCTION>(r2);
-  A->m_F = A->m_w * r2;
-  U->Initialize();
-  U->Accumulate(A->m_Je, A->m_w, x.m_Wr);
-  A->m_add = U->m_A;
-}
-inline float GetCost(const Factor::Stereo &A, const Source &x, const LA::Vector2f &e) {
-  return A.m_w * LA::SymmetricMatrix2x2f::MahalanobisDistance(x.m_Wr, e);
-}
-inline float GetCost(const Factor::Stereo &A, const Source &x, const float xd, LA::Vector2f &e) {
-  GetError(A, xd, e);
-  return GetCost(A, x, e);
-}
-inline void GetReduction(const Factor::Stereo &A, const Point3D &br, 
-                         const Depth::InverseGaussian &d, const Source &x,
-                         const float xd, Reduction &Ra, Reduction &Rp) {
-  GetError(br, d, x, Ra.m_e.m_er);
-  GetError(A, xd, Rp.m_e.m_er);
-  Ra.m_dF = A.m_F - (Ra.m_F = GetCost(A, x, Ra.m_e.m_er));
-  Rp.m_dF = A.m_F - (Rp.m_F = GetCost(A, x, Rp.m_e.m_er));
-}
-#endif
-
-
-#ifdef CFG_DEBUG_EIGEN
-class EigenErrorJacobian {
-#ifdef CFG_STEREO
- public:
-  class Stereo {
-   public:
-    inline void operator = (const ErrorJacobian::D &Je) {
-      m_Jd = Je.m_Jd;
-      m_e = Je.m_e;
-    }
-    inline void AssertEqual(const ErrorJacobian::D &Je,
-                            const int verbose = 1, const std::string str = "",
-                            const float epsAbs = 0.0f, const float epsRel = 0.0f) const {
-      m_Jd.AssertEqual(Je.m_Jd, verbose, str + ".m_Jd", epsAbs, epsRel);
-      m_e.AssertEqual(Je.m_e, verbose, str + ".m_e", epsAbs, epsRel);
-    }
-   public:
-    EigenVector2f m_Jd, m_e;
-  };
-#endif
- public:
-  inline void Set(const ErrorJacobian::D &Je) {
-    m_Jd = Je.m_Jd;
-    m_Jcx.setZero();
-    m_Jcz.setZero();
-    m_e = Je.m_e;
-  }
-  inline void Set(const ErrorJacobian::DCZ &Je) {
-    m_Jd = Je.m_Jd;
-    m_Jcx.setZero();
-    m_Jcz = Je.m_Jcz;
-    m_e = Je.m_e;
-  }
-  inline void Set(const ErrorJacobian::DCXZ &Je) {
-    m_Jd = Je.m_Jd;
-    m_Jcx = Je.m_Jcx;
-    m_Jcz = Je.m_Jcz;
-    m_e = Je.m_e;
-  }
-  inline void AssertEqual(const ErrorJacobian::D &Je,
-                          const int verbose = 1, const std::string str = "",
-                          const float epsAbs = 0.0f, const float epsRel = 0.0f) const {
-    m_Jd.AssertEqual(Je.m_Jd, verbose, str + ".m_Jd", epsAbs, epsRel);
-    m_Jcx.AssertZero(verbose, str + ".m_Jcx", -1.0f, -1.0f);
-    m_Jcz.AssertZero(verbose, str + ".m_Jcz", -1.0f, -1.0f);
-    m_e.AssertEqual(Je.m_e, verbose, str + ".m_e", epsAbs, epsRel);
-  }
-  inline void AssertEqual(const ErrorJacobian::DCZ &Je,
-                          const int verbose = 1, const std::string str = "",
-                          const float epsAbs = 0.0f, const float epsRel = 0.0f) const {
-    m_Jd.AssertEqual(Je.m_Jd, verbose, str + ".m_Jd", epsAbs, epsRel);
-    m_Jcx.AssertZero(verbose, str + ".m_Jcx", -1.0f, -1.0f);
-    m_Jcz.AssertEqual(Je.m_Jcz, verbose, str + ".m_Jcz", epsAbs, epsRel);
-    m_e.AssertEqual(Je.m_e, verbose, str + ".m_e", epsAbs, epsRel);
-  }
-  inline void AssertEqual(const ErrorJacobian::DCXZ &Je,
-                          const int verbose = 1, const std::string str = "",
-                          const float epsAbs = 0.0f, const float epsRel = 0.0f) const {
-    m_Jd.AssertEqual(Je.m_Jd, verbose, str + ".m_Jd", epsAbs, epsRel);
-    m_Jcx.AssertEqual(Je.m_Jcx, verbose, str + ".m_Jcx", epsAbs, epsRel);
-    m_Jcz.AssertEqual(Je.m_Jcz, verbose, str + ".m_Jcz", epsAbs, epsRel);
-    m_e.AssertEqual(Je.m_e, verbose, str + ".m_e", epsAbs, epsRel);
-  }
- public:
-  EigenVector2f m_Jd;
-  EigenMatrix2x6f m_Jcx, m_Jcz;
-  EigenVector2f m_e;
-};
-class EigenFactor {
- public:
-  typedef Factor::DD DD;
-  class DC : public Eigen::Matrix<float, 1, 6> {
-   public:
-    inline DC() : Eigen::Matrix<float, 1, 6>() {}
-    inline DC(const Eigen::Matrix<float, 1, 6> &a) : Eigen::Matrix<float, 1, 6>(a) {}
-    inline DC(const Factor::DC &a) : Eigen::Matrix<float, 1, 6>(EigenVector6f(a).transpose()) {}
-    inline void operator = (const Eigen::Matrix<float, 1, 6> &a) { *((Eigen::Matrix<float, 1, 6> *) this) = a; }
-    inline void operator = (const Factor::DC &a) { *this = EigenVector6f(a).transpose(); }
-    inline void operator += (const Factor::DC &a) { *((Eigen::Matrix<float, 1, 6> *) this) += DC(a); }
-    inline void operator += (const DC &a) { *((Eigen::Matrix<float, 1, 6> *) this) += a; }
-    EigenVector6f GetTranspose() const { return EigenVector6f(*this); }
-    LA::Vector6f GetVector6f() const { return GetTranspose().GetVector6f(); }
-  };
-  class DDC {
-   public:
-    inline DDC() { }
-    inline ~DDC() { }
-    inline DDC(const float add, const DC &adc, const float bd) {
-      m_add.Set(add, bd);
-      m_adc = adc;
-    }
-    inline void operator = (const Factor::DDC &a) {
-      m_add = a.m_add;
-      m_adc = a.m_adc;
-    }
-    inline void operator += (const DDC &a) {
-      m_add += a.m_add;
-      m_adc += a.m_adc;
-    }
-    inline void MakeZero() { m_add.MakeZero(); m_adc.setZero(); }
-    inline bool AssertEqual(const Factor::DDC &a,
-                            const int verbose = 1, const std::string str = "", 
-                            const float epsAbs = 0.0f, const float epsRel = 0.0f) const {
-      return m_add.AssertEqual(a.m_add, verbose, str + ".m_add", epsAbs, epsRel) &&
-             Factor::DC::Get(m_adc.GetVector6f()).AssertEqual(a.m_adc, verbose, str + ".m_adc",
-                                                              epsAbs, epsRel);
-    }
-   public:
-    DD m_add;
-    DC m_adc;
-  };
-#ifdef CFG_STEREO
-  class Stereo {
-   public:
-    inline Stereo() {}
-    inline Stereo(const float F, const float add, const float bd) {
-      m_F = F;
-      m_add = add;
-      m_bd = bd;
-    }
-    inline void operator = (const Factor::Stereo &A) {
-      m_F = A.m_F;
-      m_add = A.m_add.m_a;
-      m_bd = A.m_add.m_b;
-    }
-    inline void AssertEqual(const Factor::Stereo &A,
-                            const int verbose = 1, const std::string str = "", 
-                            const float epsAbs = 0.0f, const float epsRel = 0.0f) const {
-      UT::AssertEqual(m_F, A.m_F, verbose, str + ".m_F", epsAbs, epsRel);
-      UT::AssertEqual(m_add, A.m_add.m_a, verbose, str + ".m_add", epsAbs, epsRel);
-      UT::AssertEqual(m_bd, A.m_add.m_b, verbose, str + ".m_bd", epsAbs, epsRel);
-    }
-   public:
-    float m_F, m_add, m_bd;
-  };
-#endif
- public:
-  inline EigenFactor() {}
-  inline EigenFactor(const float F, const Eigen::Matrix<float, 13, 14, Eigen::RowMajor> &A) {
-    m_F = F;
-    m_add = A(0, 0);
-    m_adcx = A.block<1, 6>(0, 1);
-    m_adcz = A.block<1, 6>(0, 7);
-    m_bd = A(0, 13);
-    m_Acxx = A.block<6, 6>(1, 1);
-    m_Acxz = A.block<6, 6>(1, 7);
-    m_bcx = A.block<6, 1>(1, 13);
-    m_Aczz = A.block<6, 6>(7, 7);
-    m_bcz = A.block<6, 1>(7, 13);
-  }
-  inline void Set(const Factor::Depth &A) {
-    m_F = A.m_F;
-    m_add = A.m_add.m_a;
-    m_adcx.setZero();
-    m_adcz.setZero();
-    m_bd = A.m_add.m_b;
-    m_Acxx.setZero();
-    m_Acxz.setZero();
-    m_bcx.setZero();
-    m_Aczz.setZero();
-    m_bcz.setZero();
-  }
-  inline void Set(const Factor::FixSource::L &L, const Factor::FixSource::A1 &A1,
-                  const Factor::FixSource::A2 &A2) {
-    m_F = L.m_F;
-    m_add = A2.m_add.m_a;
-    m_adcx.setZero();
-    m_adcz = A1.m_adcz;
-    m_bd = A2.m_add.m_b;
-    m_Acxx.setZero();
-    m_Acxz.setZero();
-    m_bcx.setZero();
-    m_Aczz = A2.m_Aczz.m_A;
-    m_bcz = A2.m_Aczz.m_b;
-  }
-  inline void Set(const Factor::Full::L &L, const Factor::Full::A1 &A1,
-                  const Factor::Full::A2 &A2) {
-    m_F = L.m_F;
-    m_add = A2.m_adx.m_add.m_a;
-    m_adcx = A2.m_adx.m_adc;
-    m_adcz = A1.m_adcz;
-    m_bd = A2.m_adx.m_add.m_b;
-    m_Acxx = A2.m_Acxx.m_A;
-    m_Acxz = A2.m_Acxz;
-    m_bcx = A2.m_Acxx.m_b;
-    m_Aczz = A2.m_Aczz.m_A;
-    m_bcz = A2.m_Aczz.m_b;
-  }
-  inline void operator *= (const float s) {
-    m_F *= s;
-    m_add *= s;
-    m_adcx *= s;
-    m_adcz *= s;
-    m_bd *= s;
-    m_Acxx *= s;
-    m_Acxz *= s;
-    m_bcx *= s;
-    m_Aczz *= s;
-    m_bcz *= s;
-  }
-  inline void AssertEqual(const Factor::Depth &A,
-                          const int verbose = 1, const std::string str = "",
-                          const float epsAbs = 0.0f, const float epsRel = 0.0f) const {
-    UT::AssertEqual(m_F, A.m_F, verbose, str + ".m_F");
-    Factor::DD::Get(m_add, m_bd).AssertEqual(A.m_add, verbose, str + ".m_add", epsAbs, epsRel);
-    Factor::DC::Get(m_adcx.GetVector6f()).AssertZero(verbose, str + ".m_adcx");
-    Factor::DC::Get(m_adcz.GetVector6f()).AssertZero(verbose, str + ".m_adcz");
-    Camera::Factor::Unitary::CC::Get(m_Acxx.GetSymmetricMatrix6x6f(),
-                                     m_bcx.GetVector6f()).AssertZero(verbose, str + ".m_Acxx");
-    Camera::Factor::Binary::CC(m_Acxz.GetAlignedMatrix6x6f()).AssertZero(verbose, str + ".m_Acxz");
-    Camera::Factor::Unitary::CC::Get(m_Aczz.GetSymmetricMatrix6x6f(),
-                                     m_bcz.GetVector6f()).AssertZero(verbose, str + ".m_Aczz");
-  }
-  inline void AssertEqual(const Factor::FixSource::L &L, const Factor::FixSource::A1 &A1,
-                          const Factor::FixSource::A2 &A2,
-                          const int verbose = 1, const std::string str = "",
-                          const float epsAbs = 0.0f, const float epsRel = 0.0f) const {
-    UT::AssertEqual(m_F, L.m_F, verbose, str + ".m_F");
-    Factor::DD::Get(m_add, m_bd).AssertEqual(A2.m_add, verbose, str + ".m_add", epsAbs, epsRel);
-    Factor::DC::Get(m_adcx.GetVector6f()).AssertZero(verbose, str + ".m_adcx");
-    Factor::DC::Get(m_adcz.GetVector6f()).AssertEqual(A1.m_adcz, verbose, str + ".m_adcz",
-                                                      epsAbs, epsRel);
-    Camera::Factor::Unitary::CC::Get(m_Acxx.GetSymmetricMatrix6x6f(),
-                                     m_bcx.GetVector6f()).AssertZero(verbose, str + ".m_Acxx");
-    Camera::Factor::Binary::CC(m_Acxz.GetAlignedMatrix6x6f()).AssertZero(verbose, str + ".m_Acxz");
-    const LA::SymmetricMatrix6x6f Aczz = m_Aczz.GetSymmetricMatrix6x6f();
-    const LA::Vector6f bcz = m_bcz.GetVector6f();
-    Camera::Factor::Unitary::CC::Get(Aczz, bcz).AssertEqual(A2.m_Aczz, verbose, str + ".m_Aczz",
-                                                            epsAbs, epsRel);
-  }
-  inline void AssertEqual(const Factor::Full::L &L, const Factor::Full::A1 &A1,
-                          const Factor::Full::A2 &A2,
-                          const int verbose = 1, const std::string str = "",
-                          const float epsAbs = 0.0f, const float epsRel = 0.0f) const {
-    UT::AssertEqual(m_F, L.m_F, verbose, str + ".m_F");
-    Factor::DD::Get(m_add, m_bd).AssertEqual(A2.m_adx.m_add, verbose, str + ".m_add",
-                                             epsAbs, epsRel);
-    Factor::DC::Get(m_adcx.GetVector6f()).AssertEqual(A2.m_adx.m_adc, verbose, str + ".m_adcx",
-                                                      epsAbs, epsRel);
-    Factor::DC::Get(m_adcz.GetVector6f()).AssertEqual(A1.m_adcz, verbose, str + ".m_adcz",
-                                                      epsAbs, epsRel);
-    const LA::SymmetricMatrix6x6f Acxx = m_Acxx.GetSymmetricMatrix6x6f();
-    const LA::Vector6f bcx = m_bcx.GetVector6f();
-    Camera::Factor::Unitary::CC::Get(Acxx, bcx).AssertEqual(A2.m_Acxx, verbose, str + ".m_Acxx",
-                                                            epsAbs, epsRel);
-    const LA::AlignedMatrix6x6f Acxz = m_Acxz.GetAlignedMatrix6x6f();
-    Camera::Factor::Binary::CC(Acxz).AssertEqual(A2.m_Acxz, verbose, str + ".m_Acxz",
-                                                 epsAbs, epsRel);
-    const LA::SymmetricMatrix6x6f Aczz = m_Aczz.GetSymmetricMatrix6x6f();
-    const LA::Vector6f bcz = m_bcz.GetVector6f();
-    Camera::Factor::Unitary::CC::Get(Aczz, bcz).AssertEqual(A2.m_Aczz, verbose, str + ".m_Aczz",
-                                                            epsAbs, epsRel);
-  }
- public:
-  float m_F;
-  float m_add;
-  DC m_adcx, m_adcz;
-  float m_bd;
-  EigenMatrix6x6f m_Acxx, m_Acxz;
-  EigenVector6f m_bcx;
-  EigenMatrix6x6f m_Aczz;
-  EigenVector6f m_bcz;
-};
-EigenErrorJacobian EigenGetErrorJacobian(const Rigid3D &C1, const Source &x1, const Depth::InverseGaussian &d1, 
-                                         const Rigid3D &C2, const Point2D &z2, const bool cx, const bool cz
-#ifdef CFG_STEREO
-                                       , const Point3D *br = NULL
-#endif
-                                       );
-template<int ME_FUNCTION>
-inline EigenFactor EigenGetFactor(const float w, const Rigid3D &C1, const Source &x1,
-                                  const Depth::InverseGaussian &d1, const Rigid3D &C2,
-                                  const Measurement &z2, const bool cx, const bool cz
-#ifdef CFG_STEREO
-                                , const Point3D &br
-#endif
-                                ) {
-#ifdef CFG_STEREO
-  float F = 0.0f;
-  EigenMatrix13x14f e_A;
-  e_A.setZero();
-  if (z2.m_z.Valid()) {
-    const EigenErrorJacobian e_Je = EigenGetErrorJacobian(C1, x1, d1, C2, z2.m_z, cx, cz);
-    const EigenMatrix2x2f e_W = EigenMatrix2x2f(z2.m_W);
-    const float r2 = (e_W * e_Je.m_e).dot(e_Je.m_e);
-    const float _w = w * ME::Weight<ME_FUNCTION>(r2);
-    const EigenMatrix2x13f e_J = EigenMatrix2x13f(e_Je.m_Jd, e_Je.m_Jcx, e_Je.m_Jcz);
-    const EigenMatrix2x13f e_WJ = EigenMatrix2x13f(_w * e_W * e_J);
-    F += _w * r2;
-    e_A += e_WJ.transpose() * EigenMatrix2x14f(e_J, e_Je.m_e);
-  }
-  if (z2.m_zr.Valid()) {
-    const EigenErrorJacobian e_Je = EigenGetErrorJacobian(C1, x1, d1, C2, z2.m_zr, cx, cz, &br);
-    const EigenMatrix2x2f e_W = EigenMatrix2x2f(z2.m_Wr);
-    const float r2 = (e_W * e_Je.m_e).dot(e_Je.m_e);
-    const float _w = w * ME::Weight<ME_FUNCTION>(r2);
-    const EigenMatrix2x13f e_J = EigenMatrix2x13f(e_Je.m_Jd, e_Je.m_Jcx, e_Je.m_Jcz);
-    const EigenMatrix2x13f e_WJ = EigenMatrix2x13f(_w * e_W * e_J);
-    F += _w * r2;
-    e_A += e_WJ.transpose() * EigenMatrix2x14f(e_J, e_Je.m_e);
-  }
-#else
-  const EigenErrorJacobian e_Je = EigenGetErrorJacobian(C1, x1, d1, C2, z2.m_z, cx, cz);
-  const EigenMatrix2x2f e_W = EigenMatrix2x2f(z2.m_W);
-  const float r2 = (e_W * e_Je.m_e).dot(e_Je.m_e);
-  const float _w = w * ME::Weight<ME_FUNCTION>(r2);
-  const EigenMatrix2x13f e_J = EigenMatrix2x13f(e_Je.m_Jd, e_Je.m_Jcx, e_Je.m_Jcz);
-  const EigenMatrix2x13f e_WJ = EigenMatrix2x13f(_w * e_W * e_J);
-  const float F = _w * r2;
-  const EigenMatrix13x14f e_A = EigenMatrix13x14f(e_WJ.transpose() *
-                                EigenMatrix2x14f(e_J, e_Je.m_e));
-#endif
-  return EigenFactor(F, e_A);
-}
-template<int ME_FUNCTION>
-inline float EigenGetCost(const float w, const Rigid3D &C1, const Source &x1,
-                          const Depth::InverseGaussian &d1, const Rigid3D &C2,
-                          const Measurement &z2, const EigenVector6f *e_xcx,
-                          const EigenVector6f *e_xcz, const float xd
-#ifdef CFG_STEREO
-                        , const Point3D &br
-#endif
-                        ) {
-#ifdef CFG_STEREO
-  float F = 0.0f;
-  if (z2.m_z.Valid()) {
-    const EigenErrorJacobian e_Je = EigenGetErrorJacobian(C1, x1, d1, C2, z2.m_z,
-                                                          e_xcx != NULL, e_xcz != NULL);
-    const EigenMatrix2x2f e_W = EigenMatrix2x2f(z2.m_W);
-    const float r2 = (e_W * e_Je.m_e).dot(e_Je.m_e);
-    const float _w = w * ME::Weight<ME_FUNCTION>(r2);
-    EigenVector2f e_e = e_Je.m_e;
-    if (e_xcx) {
-      e_e += e_Je.m_Jcx * *e_xcx;
-    }
-    if (e_xcz) {
-      e_e += e_Je.m_Jcz * *e_xcz;
-    }
-    e_e += e_Je.m_Jd * xd;
-    F += _w * (e_W * e_e).dot(e_e);
-  }
-  if (z2.m_zr.Valid()) {
-    const EigenErrorJacobian e_Je = EigenGetErrorJacobian(C1, x1, d1, C2, z2.m_zr,
-                                                          e_xcx != NULL, e_xcz != NULL, &br);
-    const EigenMatrix2x2f e_W = EigenMatrix2x2f(z2.m_Wr);
-    const float r2 = (e_W * e_Je.m_e).dot(e_Je.m_e);
-    const float _w = w * ME::Weight<ME_FUNCTION>(r2);
-    EigenVector2f e_e = EigenVector2f(e_Je.m_e + e_Je.m_Jd * xd);
-    if (e_xcx) {
-      e_e += e_Je.m_Jcx * *e_xcx;
-    }
-    if (e_xcz) {
-      e_e += e_Je.m_Jcz * *e_xcz;
-    }
-    F += _w * (e_W * e_e).dot(e_e);
-  }
-#else
-  const EigenErrorJacobian e_Je = EigenGetErrorJacobian(C1, x1, d1, C2, z2.m_z,
-                                                        e_xcx != NULL, e_xcz != NULL);
-  const EigenMatrix2x2f e_W = EigenMatrix2x2f(z2.m_W);
-  const float r2 = (e_W * e_Je.m_e).dot(e_Je.m_e);
-  const float _w = w * ME::Weight<ME_FUNCTION>(r2);
-  EigenVector2f e_e = EigenVector2f(e_Je.m_e + e_Je.m_Jd * xd);
-  if (e_xcx) {
-    e_e += e_Je.m_Jcx * *e_xcx;
-  }
-  if (e_xcz) {
-    e_e += e_Je.m_Jcz * *e_xcz;
-  }
-  const float F = _w * (e_W * e_e).dot(e_e);
-#endif
-  return F;
-}
-#ifdef CFG_STEREO
-EigenErrorJacobian::Stereo EigenGetErrorJacobian(const Point3D &br,
-                                                 const Depth::InverseGaussian &d,
-                                                 const Source &x);
-template<int ME_FUNCTION>
-inline EigenFactor::Stereo EigenGetFactor(const float w, const Point3D &br, 
-                                          const Depth::InverseGaussian &d, const Source &x) {
-  const EigenErrorJacobian::Stereo e_Je = EigenGetErrorJacobian(br, d, x);
-  const EigenMatrix2x2f e_W = EigenMatrix2x2f(x.m_Wr);
-  const float r2 = (e_W * e_Je.m_e).dot(e_Je.m_e);
-  const float _w = w * ME::Weight<ME_FUNCTION>(r2);
-  const EigenVector2f e_WJ(_w * e_W * e_Je.m_Jd);
-  const float add = e_WJ.dot(e_Je.m_Jd), bd = e_WJ.dot(e_Je.m_e);
-  const float F = _w * r2;
-  return EigenFactor::Stereo(F, add, bd);
-}
-template<int ME_FUNCTION>
-inline float EigenGetCost(const float w, const Point3D &br, const Depth::InverseGaussian &d,
-                          const Source &x, const float xd) {
-  const EigenErrorJacobian::Stereo e_Je = EigenGetErrorJacobian(br, d, x);
-  const EigenMatrix2x2f e_W = EigenMatrix2x2f(x.m_Wr);
-  const float r2 = (e_W * e_Je.m_e).dot(e_Je.m_e);
-  const float _w = w * ME::Weight<ME_FUNCTION>(r2);
-  const EigenVector2f e_e = EigenVector2f(e_Je.m_e + e_Je.m_Jd * xd);
-  return _w * (e_W * e_e).dot(e_e);
-}
-#endif
-#endif
 }
 #endif
