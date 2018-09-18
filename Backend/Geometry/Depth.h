@@ -153,6 +153,7 @@ class InverseGaussian {
     Jx2.x() = (T12.tx() - x2.x() * T12.tz()) * d12;
     Jx2.y() = (T12.ty() - x2.y() * T12.tz()) * d12;
   }
+  //GBA::UpdateFactorsFeature
   inline void Project(const Rigid3D &T12, const Point2D &x1, LA::Vector2f &x2, float &d12, float &d2,
                       LA::Vector2f &Jx2, LA::AlignedVector3f &R12x1) const {
     const xp128f t = xp128f::get(x1.x(), x1.y(), 1.0f, u());

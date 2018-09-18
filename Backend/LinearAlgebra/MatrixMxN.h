@@ -85,53 +85,29 @@ class SIMD_ALIGN_DECLSPEC AlignedMatrixMxNf {
   }
 
   inline void SetBlock(const int i, const int j, const AlignedMatrix2x3f &B) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 2 <= M);
-    UT_ASSERT(j >= 0 && j + 3 <= N);
-#endif
     memcpy(m_rows[i].m_data + j, &B.m00(), 12);
     memcpy(m_rows[i + 1].m_data + j, &B.m10(), 12);
   }
   inline void SetBlock(const int i, const int j, const Matrix2x3f &B) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 2 <= M);
-    UT_ASSERT(j >= 0 && j + 3 <= N);
-#endif
     memcpy(m_rows[i].m_data + j, B[0], 12);
     memcpy(m_rows[i + 1].m_data + j, B[1], 12);
   }
   inline void SetBlock(const int i, const int j, const AlignedMatrix3x3f &B) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 3 <= M);
-    UT_ASSERT(j >= 0 && j + 3 <= N);
-#endif
     memcpy(m_rows[i].m_data + j, &B.m00(), 12);
     memcpy(m_rows[i + 1].m_data + j, &B.m10(), 12);
     memcpy(m_rows[i + 2].m_data + j, &B.m20(), 12);
   }
   inline void SetBlock(const int i, const int j, const Matrix3x3f &B) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 3 <= M);
-    UT_ASSERT(j >= 0 && j + 3 <= N);
-#endif
     memcpy(m_rows[i].m_data + j, B[0], 12);
     memcpy(m_rows[i + 1].m_data + j, B[1], 12);
     memcpy(m_rows[i + 2].m_data + j, B[2], 12);
   }
   inline void SetBlock(const int i, const int j, const AlignedVector3f &v) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 3 <= M);
-    UT_ASSERT(j >= 0 && j < N);
-#endif
     m_rows[i].m_data[j] = v.v0();
     m_rows[i + 1].m_data[j] = v.v1();
     m_rows[i + 2].m_data[j] = v.v2();
   }
   inline void SetBlock(const int i, const int j, const AlignedMatrix6x6f &B) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 6 <= M);
-    UT_ASSERT(j >= 0 && j + 6 <= N);
-#endif
     memcpy(m_rows[i] + j, B[0], 24);
     memcpy(m_rows[i + 1] + j, B[1], 24);
     memcpy(m_rows[i + 2] + j, B[2], 24);
@@ -140,18 +116,12 @@ class SIMD_ALIGN_DECLSPEC AlignedMatrixMxNf {
     memcpy(m_rows[i + 5] + j, B[5], 24);
   }
   inline void SetBlockDiagonal(const int i, const SymmetricMatrix3x3f &B) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 3 <= M && i + 3 <= N);
-#endif
     int k = i;
     memcpy(m_rows[k] + k, &B.m00(), 12);  ++k;
     memcpy(m_rows[k] + k, &B.m11(), 8);   ++k;
     m_rows[k][k] = B.m22();
   }
   inline void SetBlockDiagonal(const int i, const SymmetricMatrix6x6f &B) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 6 <= M && i + 6 <= N);
-#endif
     int k = i;
     memcpy(m_rows[k] + k, &B.m00(), 24);  ++k;
     memcpy(m_rows[k] + k, &B.m11(), 20);  ++k;
@@ -162,36 +132,20 @@ class SIMD_ALIGN_DECLSPEC AlignedMatrixMxNf {
   }
 
   inline void GetBlock(const int i, const int j, AlignedMatrix3x3f &B) const {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 3 <= M);
-    UT_ASSERT(j >= 0 && j + 3 <= N);
-#endif
     memcpy(&B.m00(), m_rows[i].m_data + j, 12);
     memcpy(&B.m10(), m_rows[i + 1].m_data + j, 12);
     memcpy(&B.m20(), m_rows[i + 2].m_data + j, 12);
   }
   inline void GetBlock(const int i, const int j, Matrix2x3f &B) const {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 2 <= M);
-    UT_ASSERT(j >= 0 && j + 3 <= N);
-#endif
     memcpy(B[0], m_rows[i].m_data + j, 12);
     memcpy(B[1], m_rows[i + 1].m_data + j, 12);
   }
   inline void GetBlock(const int i, const int j, Matrix3x3f &B) const {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 3 <= M);
-    UT_ASSERT(j >= 0 && j + 3 <= N);
-#endif
     memcpy(B[0], m_rows[i].m_data + j, 12);
     memcpy(B[1], m_rows[i + 1].m_data + j, 12);
     memcpy(B[2], m_rows[i + 2].m_data + j, 12);
   }
   inline void GetBlock(const int i, const int j, AlignedMatrix6x6f &B) const {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 6 <= M);
-    UT_ASSERT(j >= 0 && j + 6 <= N);
-#endif
     memcpy(B[0], m_rows[i] + j, 24);
     memcpy(B[1], m_rows[i + 1] + j, 24);
     memcpy(B[2], m_rows[i + 2] + j, 24);
@@ -200,10 +154,6 @@ class SIMD_ALIGN_DECLSPEC AlignedMatrixMxNf {
     memcpy(B[5], m_rows[i + 5] + j, 24);
   }
   inline void GetBlock(const int i, const int j, Vector6f &v) const {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 3 <= M);
-    UT_ASSERT(j >= 0 && j < N);
-#endif
     v.v0() = m_rows[i][j];
     v.v1() = m_rows[i + 1][j];
     v.v2() = m_rows[i + 2][j];
@@ -212,18 +162,12 @@ class SIMD_ALIGN_DECLSPEC AlignedMatrixMxNf {
     v.v5() = m_rows[i + 5][j];
   }
   inline void GetBlockDiagonal(const int i, SymmetricMatrix3x3f &B) const {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 3 <= M && i + 3 <= N);
-#endif
     int k = i;
     memcpy(&B.m00(), m_rows[k] + k, 12);  ++k;
     memcpy(&B.m11(), m_rows[k] + k, 8);   ++k;
     B.m22() = m_rows[k][k];
   }
   inline void GetBlockDiagonal(const int i, SymmetricMatrix3x3d &B) const {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 3 <= M && i + 3 <= N);
-#endif
     B.m00() = double(m_rows[i][i]);
     B.m01() = double(m_rows[i][i + 1]);
     B.m02() = double(m_rows[i][i + 2]);
@@ -232,17 +176,11 @@ class SIMD_ALIGN_DECLSPEC AlignedMatrixMxNf {
     B.m22() = double(m_rows[i + 2][i + 2]);
   }
   inline void GetBlockDiagonal(const int i, AlignedMatrix3x3f &B) const {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 3 <= M && i + 3 <= N);
-#endif
     memcpy(&B.m00(), m_rows[i] + i, 12);
     memcpy(&B.m10(), m_rows[i + 1] + i, 12);
     memcpy(&B.m20(), m_rows[i + 2] + i, 12);
   }
   inline void GetBlockDiagonal(const int i, SymmetricMatrix6x6f &B) const {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 6 <= M && i + 6 <= N);
-#endif
     int k = i;
     memcpy(&B.m00(), m_rows[k] + k, 24);  ++k;
     memcpy(&B.m11(), m_rows[k] + k, 20);  ++k;
@@ -253,19 +191,12 @@ class SIMD_ALIGN_DECLSPEC AlignedMatrixMxNf {
   }
 
   inline void Increase(const int i, const int j, const AlignedMatrix3x3f &B) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 3 <= M);
-    UT_ASSERT(j >= 0 && j + 3 <= N);
-#endif
     float *A;
     A = m_rows[i].m_data + j;     A[0] += B.m00();  A[1] += B.m01();  A[2] += B.m02();
     A = m_rows[i + 1].m_data + j; A[0] += B.m10();  A[1] += B.m11();  A[2] += B.m12();
     A = m_rows[i + 2].m_data + j; A[0] += B.m20();  A[1] += B.m21();  A[2] += B.m22();
   }
   inline void IncreaseDiagonal(const int i, const SymmetricMatrix3x3f &B) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + 3 <= M);
-#endif
     float *A;
     A = m_rows[i].m_data + i;     A[0] += B.m00();  A[1] += B.m01();  A[2] += B.m02();
     A = m_rows[i + 1].m_data + i;                   A[1] += B.m11();  A[2] += B.m12();

@@ -148,7 +148,7 @@ class GlobalMap {
     }
    public:
     std::vector<FTR::Source> m_xs;
-  };
+  };  //END FOR KeyFrame
 
   class KeyFrameBA : public KeyFrame {
    public:

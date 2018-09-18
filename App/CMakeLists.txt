@@ -24,23 +24,23 @@ endif(CVD_FOUND)
 # =========================
 # run back-end only with .dat file
 # =========================
-add_executable(back_end
-    ../App/run_backend.cpp
-)
-target_include_directories(back_end PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${GLOBAL_IBA_INCLUDE_DIRS}
-    ${EIGEN_INCLUDE_DIR}
-)
-target_link_libraries(back_end
-    IBA
-    OF
-)
-if (CVD_FOUND)
- target_include_directories(back_end PUBLIC
-     ${GLOBAL_VISUALIZATION_INCLUDE_DIR}
- )
- target_link_libraries(back_end
-     IBAVis
- )
-endif (CVD_FOUND)
+#add_executable(back_end
+#    ../App/run_backend.cpp
+#)
+#target_include_directories(back_end PUBLIC
+#    ${CMAKE_CURRENT_SOURCE_DIR}
+#    ${GLOBAL_IBA_INCLUDE_DIRS}
+#    ${EIGEN_INCLUDE_DIR}
+#)
+#target_link_libraries(back_end
+#    IBA
+#    OF
+#)
+#if (CVD_FOUND)
+# target_include_directories(back_end PUBLIC
+#     ${GLOBAL_VISUALIZATION_INCLUDE_DIR}
+# )
+# target_link_libraries(back_end
+#     IBAVis
+# )
+#endif (CVD_FOUND)

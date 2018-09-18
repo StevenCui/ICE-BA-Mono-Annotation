@@ -196,13 +196,6 @@ void Solver::Stop() {
 }
 
 void Solver::PushCurrentFrame(const CurrentFrame &CF, const KeyFrame *KF, const bool serial) {
-//#ifdef CFG_DEBUG
-#if 0
-  if (KF && KF->iFrm == 0 && CF.iFrm != 0) {
-    KF = NULL;
-  }
-#endif
-  //UT::Print("[%d]\n", CF.iFrm);
   if (KF) {
     //UT::Print("[%d]\n", KF->iFrm);
     //UT::Print("%f\n", KF->C.R[0][0]);

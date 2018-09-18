@@ -99,9 +99,6 @@ class Solver {
                     std::vector<MapPointMeasurement> *zs,
                     std::vector<MapPoint> *Xs = NULL,
                     const std::vector<int> *iFrms = NULL
-#ifdef CFG_STEREO
-                  , const ubyte right = 0
-#endif
                   );
   void SaveB(FILE *fp);
   void LoadB(FILE *fp);

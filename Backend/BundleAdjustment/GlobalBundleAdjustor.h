@@ -59,46 +59,28 @@ class GlobalBundleAdjustor : public MT::Thread {
     inline InputKeyFrame(const GlobalMap::InputKeyFrame &IKF,
                          const AlignedVector<IMU::Measurement> &us,
                          const std::vector<Depth::InverseGaussian> &dzs
-#ifdef CFG_HANDLE_SCALE_JUMP
-                       , const float d
-#endif
                        ) : GlobalMap::InputKeyFrame(IKF) {
       m_us.Set(us);
       m_dzs = dzs;
-#ifdef CFG_HANDLE_SCALE_JUMP
-      m_d = d;
-#endif
     }
     inline void operator = (const InputKeyFrame &IKF) {
       *((GlobalMap::InputKeyFrame *) this) = IKF;
       m_us.Set(IKF.m_us);
       m_dzs = IKF.m_dzs;
-#ifdef CFG_HANDLE_SCALE_JUMP
-      m_d = IKF.m_d;
-#endif
     }
     inline void SaveB(FILE *fp) const {
       GlobalMap::InputKeyFrame::SaveB(fp);
       m_us.SaveB(fp);
       UT::VectorSaveB(m_dzs, fp);
-#ifdef CFG_HANDLE_SCALE_JUMP
-      UT::SaveB(m_d, fp);
-#endif
     }
     inline void LoadB(FILE *fp) {
       GlobalMap::InputKeyFrame::LoadB(fp);
       m_us.LoadB(fp);
       UT::VectorLoadB(m_dzs, fp);
-#ifdef CFG_HANDLE_SCALE_JUMP
-      UT::LoadB(m_d, fp);
-#endif
     }
    public:
     AlignedVector<IMU::Measurement> m_us;
     std::vector<Depth::InverseGaussian> m_dzs;
-#ifdef CFG_HANDLE_SCALE_JUMP
-    float m_d;
-#endif
   };
   
  public:
@@ -109,9 +91,6 @@ class GlobalBundleAdjustor : public MT::Thread {
   virtual void PushKeyFrame(const GlobalMap::InputKeyFrame &IKF,
                             const AlignedVector<IMU::Measurement> &us,
                             const std::vector<Depth::InverseGaussian> &dzs
-#ifdef CFG_HANDLE_SCALE_JUMP
-                          , const float d
-#endif
                           );
   virtual void PushDeleteKeyFrame(const int iFrm, const int iKF);
   virtual void PushDeleteMapPoints(const int iFrm, const std::vector<int> &ids);
@@ -183,12 +162,6 @@ class GlobalBundleAdjustor : public MT::Thread {
       m_Axs.InsertZero(ix, Nx, NULL);
       m_Mxs1.InsertZero(ix, Nx, NULL);
       m_Mxs2.InsertZero(ix, Nx, NULL);
-#ifdef CFG_DEBUG
-      for (int jx = ix; jx < Nx; ++jx) {
-        m_Mxs1[jx].m_mdx.Invalidate();
-        m_Mxs2[jx].m_Mcxx.Invalidate();
-      }
-#endif
     }
     inline void PushFeatureMeasurements(const int iKF, const std::vector<FTR::Measurement> &zs,
                                         int *ik, int *iz, AlignedVector<float> *work) {
@@ -318,13 +291,6 @@ class GlobalBundleAdjustor : public MT::Thread {
       m_SAcxzs.MakeZero();
       m_Zm.MakeZero();
       m_SAps.MakeZero();
-#ifdef CFG_DEBUG
-      const int Nx = int(m_xs.size());
-      for (int ix = 0; ix < Nx; ++ix) {
-        m_Mxs1[ix].m_mdx.Invalidate();
-        m_Mxs2[ix].m_Mcxx.Invalidate();
-      }
-#endif
     }
     inline void InsertMatchKeyFrame(const int iKF, const std::vector<int>::iterator *ik = NULL) {
       std::vector<int>::iterator _ik;
@@ -422,11 +388,6 @@ class GlobalBundleAdjustor : public MT::Thread {
       UT_ASSERT(m_Lzs.Size() == Nz);
       UT_ASSERT(m_Azs1.Size() == Nz && m_Azs2.Size() == Nz);
       UT_ASSERT(m_Mzs1.Size() == Nz && m_Mzs2.Size() == Nz);
-#ifdef CFG_STEREO
-      for (int iz = 0; iz < Nz; ++iz) {
-        UT_ASSERT(m_Lzs[iz].m_Je.Valid() || m_Lzs[iz].m_Jer.Valid());
-      }
-#endif
       UT_ASSERT(m_SAcxzs.Size() == static_cast<int>(m_Zs.size()));
       //UT_ASSERT(m_iKFsMatch.empty() || m_iKFsMatch.back() < iKF);
       //UT_ASSERT(m_iKFsPrior.empty() || m_iKFsPrior.back() < iKF);
@@ -473,7 +434,7 @@ class GlobalBundleAdjustor : public MT::Thread {
     FRM::MeasurementMatch m_Zm;
     std::vector<int> m_iKFsPrior, m_iAp2kp, m_ikp2KF;
     AlignedVector<Camera::Factor::Binary::CC> m_SAps;
-  };
+  };//END FOR KeyFrame
   
   class CameraPriorMotion : public CameraPrior::Motion {
    public:
@@ -541,15 +502,7 @@ class GlobalBundleAdjustor : public MT::Thread {
     //int m_Nd;
     // m_history >= 2
     ES m_ESa, m_ESb, m_ESp;
-#ifdef CFG_GROUND_TRUTH
-    // m_history >= 3 using only available depth measurements
-    ES m_ESaGT, m_ESpGT;
-#endif
-    // m_history >= 2
     Residual m_R;
-#ifdef CFG_GROUND_TRUTH
-    Residual m_RGT;
-#endif
   };
   class HistoryCamera {
    public:
@@ -598,12 +551,7 @@ class GlobalBundleAdjustor : public MT::Thread {
   virtual void UpdateSchurComplement();
   virtual bool SolveSchurComplement();
   virtual bool SolveSchurComplementPCG();
-#ifdef CFG_GROUND_TRUTH
-  virtual void SolveSchurComplementGT(const AlignedVector<Rigid3D> &Cs,
-                                      const AlignedVector<Camera> &CsLM,
-                                      LA::AlignedVectorXf *xs,
-                                      const bool motion = true);
-#endif
+
   virtual void PrepareConditioner();
   virtual void ApplyM(const LA::AlignedVectorX<PCG_TYPE> &xs, LA::AlignedVectorX<PCG_TYPE> *Mxs);
   virtual void ApplyA(const LA::AlignedVectorX<PCG_TYPE> &xs, LA::AlignedVectorX<PCG_TYPE> *Axs);
@@ -616,10 +564,7 @@ class GlobalBundleAdjustor : public MT::Thread {
   virtual Residual ComputeResidual(const LA::AlignedVectorX<PCG_TYPE> &xs,
                                    const bool minmus = false);
   virtual void SolveBackSubstitution();
-#ifdef CFG_GROUND_TRUTH
-  virtual void SolveBackSubstitutionGT(const std::vector<Depth::InverseGaussian> &ds,
-                                       LA::AlignedVectorXf *xs);
-#endif
+
   virtual bool EmbeddedMotionIteration();
   virtual void EmbeddedPointIteration(const AlignedVector<Rigid3D> &Cs,
                                       const std::vector<ubyte> &ucs,
@@ -744,9 +689,7 @@ class GlobalBundleAdjustor : public MT::Thread {
   CameraPriorMotion m_IZpLM1, m_IZpLM2;
 
   Timer m_ts[TM_TYPES];
-#ifdef CFG_HISTORY
-  std::vector<History> m_hists;
-#endif
+
   std::vector<HistoryCamera> m_CsDel;
 
   int m_iIter, m_iIterPCG, m_iIterDL;
@@ -763,25 +706,16 @@ class GlobalBundleAdjustor : public MT::Thread {
   std::vector<int> m_iFrms;
   AlignedVector<Rigid3D> m_Cs;
   AlignedVector<Camera> m_CsLM;
-#ifdef CFG_GROUND_TRUTH
-  AlignedVector<Rigid3D> m_CsKFGT;
-  AlignedVector<Camera> m_CsLMGT;
-#endif
+
   std::vector<ubyte> m_ucs, m_ucmsLM;
-#ifdef CFG_GROUND_TRUTH
-  std::vector<ubyte> m_ucsGT;
-#endif
-#ifdef CFG_HANDLE_SCALE_JUMP
-  std::vector<float> m_dsKF;
-#endif
+
+
 #ifdef CFG_INCREMENTAL_PCG
   AlignedVector<LA::Vector6f> m_xcs;
   AlignedVector<LA::Vector9f> m_xmsLM;
 #endif
   AlignedVector<IMU::Delta> m_DsLM;
-#ifdef CFG_GROUND_TRUTH
-  AlignedVector<IMU::Delta> m_DsLMGT;
-#endif
+
   AlignedVector<IMU::Delta::Factor> m_AdsLM;
 
   AlignedVector<Camera::Fix::PositionZ::Factor> m_Afps;
@@ -789,13 +723,9 @@ class GlobalBundleAdjustor : public MT::Thread {
 
   std::vector<int> m_iKF2d;
   std::vector<Depth::InverseGaussian> m_ds;
-#ifdef CFG_GROUND_TRUTH
-  std::vector<Depth::InverseGaussian> *m_dsGT;
-#endif
+
   std::vector<ubyte> m_uds;
-#ifdef CFG_GROUND_TRUTH
-  std::vector<ubyte> m_udsGT;
-#endif
+
 
   AlignedVector<Camera::Factor::Unitary::CC> m_SAcus, m_SMcus;
   AlignedVector<Camera::Factor> m_SAcmsLM;
@@ -858,60 +788,6 @@ class GlobalBundleAdjustor : public MT::Thread {
   // Callback function that will be triggered after GBA::run() finishes
   IBA::Solver::IbaCallback m_callback;
 
-// #ifdef CFG_DEBUG_EIGEN
-//  protected:
-//   class Track {
-//    public:
-//     class Measurement {
-//      public:
-//       inline Measurement() {}
-//       inline Measurement(const int iKF, const int iz) : m_iKF(iKF), m_iz(iz) {}
-//       inline bool operator < (const Measurement &z) const { return m_iKF < z.m_iKF; }
-//      public:
-//       int m_iKF, m_iz;
-//       FTR::EigenFactor::DC m_adcz;
-//     };
-//    public:
-//     inline void Initialize() { m_zs.resize(0); }
-//    public:
-//     std::vector<Measurement> m_zs;
-//     FTR::EigenFactor::DDC m_Sadx;
-//   };
-//  protected:
-//   virtual void DebugGenerateTracks();
-//   virtual void DebugUpdateFactors();
-//   virtual void DebugUpdateFactorsFeature();
-//   virtual void DebugUpdateFactorsPriorCameraPose();
-//   virtual void DebugUpdateFactorsPriorCameraMotion();
-//   virtual void DebugUpdateFactorsPriorDepth();
-//   virtual void DebugUpdateFactorsIMU();
-//   virtual void DebugUpdateFactorsFixOrigin();
-//   virtual void DebugUpdateFactorsFixPositionZ();
-//   virtual void DebugUpdateFactorsFixMotion();
-//   virtual void DebugUpdateSchurComplement();
-//   virtual void DebugSolveSchurComplement();
-//   virtual void DebugSolveBackSubstitution();
-//   virtual void DebugSolveGradientDescent();
-//   virtual void DebugComputeReduction();
-//   virtual void DebugComputeReductionFeature();
-//   virtual void DebugComputeReductionPriorCameraPose();
-//   virtual void DebugComputeReductionPriorCameraMotion();
-//   virtual void DebugComputeReductionPriorDepth();
-//   virtual void DebugComputeReductionIMU();
-//   virtual void DebugComputeReductionFixOrigin();
-//   virtual void DebugComputeReductionFixPositionZ();
-//   virtual void DebugComputeReductionFixMotion();
-//  protected:
-//   std::vector<std::vector<Track> > e_Xs;
-//   std::vector<std::vector<ubyte> > e_M;
-//   std::vector<std::vector<int> > e_I;
-//   std::vector<EigenMatrix6x6f> e_SAccs, e_SMccs;
-//   std::vector<EigenVector6f> e_Sbcs, e_Smcs, e_xcs, e_gcs, e_Agcs;
-//   LA::AlignedVectorXf e_xds, e_gds, e_Agds;
-//   std::vector<Camera::EigenFactor> e_SAcmsLM;
-//   std::vector<EigenVector9f> e_Sbms, e_xms, e_gms, e_Agms;
-//   float e_dFp;
-// #endif
 };
 
 #endif

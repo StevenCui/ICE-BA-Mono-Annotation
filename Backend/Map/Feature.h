@@ -31,7 +31,7 @@ class Source {
   }
  public:
   Point2D m_x;
-};
+};//END FOR Source
 
 class Measurement {
  public:
@@ -68,7 +68,7 @@ class Measurement {
   union { int m_iKF, m_id, m_ix; };
   Point2D m_z;
   LA::SymmetricMatrix2x2f m_W;
-};
+};//END FOR Measurement
 
 class ESError : public LA::Vector2f {
  public:
@@ -83,7 +83,8 @@ class ESError : public LA::Vector2f {
       UT::Print("%.2f", ex);
     }
   }
-};
+}; //END FOR ESError
+
 class ESIndex {
  public:
   inline ESIndex() : m_ixFrm(-1), m_ix(-1), m_izFrm(-1), m_iz(-1) {}
@@ -116,7 +117,8 @@ class ESIndex {
   }
  public:
   int m_ixFrm, m_ix, m_izFrm, m_iz;
-};
+};//END FOR ESIndex
+
 class ES {
  public:
   inline void Initialize(const bool r = true) { m_ESx.Initialize(r); m_ESd.Initialize(r); }
@@ -142,7 +144,7 @@ class ES {
  public:
   UT::ES<ESError, ESIndex> m_ESx;
   UT::ES<float, ESIndex> m_ESd;
-};
+};//END FOR ES
 
 class Error {
  public:
@@ -181,7 +183,7 @@ class D {
   inline void Invalidate() { m_e.Invalidate(); }
  public:
   LA::Vector2f m_Jd, m_e;
-};
+};//END FRO D
 class X {
  public:
   inline bool Valid() const { return m_e.Valid(); }
@@ -190,32 +192,34 @@ class X {
  public:
   LA::Matrix2x3f m_Jx;
   LA::Vector2f m_e;
-};
+};//END FOR X
+
 class DCZ : public D {
  public:
   inline void MakeZero() { memset(this, 0, sizeof(DCZ)); }
  public:
   LA::AlignedMatrix2x6f m_Jcz;
-};
+};//END FOR DCZ
+
 class DCXZ : public DCZ {
  public:
   inline void MakeZero() { memset(this, 0, sizeof(DCXZ)); }
  public:
   LA::AlignedMatrix2x6f m_Jcx;
-};
+};//END DCXZ
 class XC : public X {
  public:
   inline void MakeZero() { memset(this, 0, sizeof(XC)); }
  public:
   LA::AlignedMatrix2x6f m_Jc;
-};
+};//END FOR XC
 }  // namespace ErrorJacobian
 
 class Reduction {
  public:
   Error m_e;
   float m_F, m_dF;
-};
+};//END FOR Reduction
 
 namespace Factor {
 class DD {
@@ -288,6 +292,7 @@ class XX {
     xp128f m_data[3];
   };
 }; //END FOR XX
+
 class DC : public LA::Vector6f {
  public:
   static inline DC Get(const float *a) { DC _a; _a.Set(a); return _a; }
@@ -493,20 +498,14 @@ class M {
  public:
   DD m_mdd;
 };//END FOR M
-}  // namespace Source
+}  //END FOR namespace Source
 
 class L {
  public:
   ErrorJacobian::DCZ m_Je;
-#ifdef CFG_STEREO
-  ErrorJacobian::DCZ m_Jer;
-#endif
   union {
     struct {
       float m_w;
-#ifdef CFG_STEREO
-      float m_wr;
-#endif
       float m_F;
     };
     xp128f m_data;
@@ -713,8 +712,8 @@ static inline void Marginalize(const M1 &Mz, const LA::ProductVector6f &adcz,
                                Camera::Factor::Binary::CC &Mczm) {
   LA::AlignedMatrix6x6f::abT(Mz.m_adcz, adcz, Mczm);
 }
-}  // namespace Full
-}  // namespace Factor
+}  //END FOR namespace Full
+}  //END FOR namespace Factor
 
 inline void GetError(const Rigid3D &T12, const Source &x1, const Depth::InverseGaussian &d1,
                      const Point2D &z2, LA::Vector2f &e2) {
@@ -897,6 +896,7 @@ inline void GetFactor(const float w, const Rigid3D *T12, const Source &x1,
   U->m_A.Get(A2->m_add.m_a, A1->m_adcz, A2->m_add.m_b, A2->m_Aczz.m_A, A2->m_Aczz.m_b);
 }
 
+//GBA::UpdateFactorsFeature
 template<int ME_FUNCTION>
 inline void GetFactor(const float w, const Rigid3D *T12, const Source &x1,
                       const Depth::InverseGaussian &d1, const Rigid3D &T2,

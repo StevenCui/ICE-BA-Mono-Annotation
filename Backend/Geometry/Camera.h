@@ -34,7 +34,7 @@ class Camera {
     Rotation3D m_Rr;
     Point3D m_br;
 #endif
-  };
+  };//END FOR Calibration
   
   class Pose {
    public:
@@ -65,7 +65,7 @@ class Camera {
    public:
     Quaternion m_q;
     Point3D m_p;
-  };
+  }; //END FOR Pose
 
   class Factor {
    public:
@@ -199,7 +199,7 @@ class Camera {
           };
           xp128f m_data[7];
         };
-      };
+      }; //END FOR CC
 
       class CM : public LA::AlignedMatrix6x9f {
        public:
@@ -243,7 +243,8 @@ class Camera {
           }
           return false;
         }
-      };
+      };//END FOR CM
+
       class MM {
        public:
         inline void Set(const LA::AlignedMatrix3x3f *Av, const LA::AlignedMatrix3x3f *Aba,
@@ -333,7 +334,8 @@ class Camera {
           struct { LA::SymmetricMatrix9x9f m_A; LA::Vector9f m_b; };
           xp128f m_data[14];
         };
-      };
+      };//END FOR MM
+
      public:
       inline void MakeZero() { memset(this, 0, sizeof(Unitary)); }
       inline void MakeMinus() {
@@ -375,7 +377,8 @@ class Camera {
       //CC m_Acc;
       CM m_Acm;
       MM m_Amm;
-    };
+    };//END FOR Unitary
+
     class Binary {
      public:
       class CC : public LA::AlignedMatrix6x6f {
@@ -416,31 +419,12 @@ class Camera {
         inline bool AssertZero(const int verbose = 1, const std::string str = "") const {
           return LA::AlignedMatrix6x6f::AssertZero(verbose, str, -1.0f, -1.0f);
         }
-      };
+      };//END FOR CC
 
-#ifdef CFG_IMU_FULL_COVARIANCE
+
       class CM : public Unitary::CM {
       };
-#else
-      class CM {
-       public:
-        inline void operator += (const CM &A) { m_Arv += A.m_Arv; }
-        inline void operator -= (const CM &A) { m_Arv -= A.m_Arv; }
-        inline void MakeMinus() { m_Arv.MakeMinus(); }
-        inline LA::AlignedMatrix6x9f GetAlignedMatrix6x9f() const {
-          LA::AlignedMatrix6x9f A;
-          A.MakeZero();
-          A.SetBlock(3, 0, m_Arv);
-          return A;
-        }
-        inline void Print(const bool e = false) const { m_Arv.Print(e); }
-        static inline void AmB(const CM &A, const CM &B, CM &AmB) {
-          LA::AlignedMatrix3x3f::AmB(A.m_Arv, B.m_Arv, AmB.m_Arv);
-        }
-       public:
-        LA::AlignedMatrix3x3f m_Arv;
-      };
-#endif
+
       class MC : public LA::AlignedMatrix9x6f {
        public:
         inline MC operator - (const MC &B) const {
@@ -482,8 +466,8 @@ class Camera {
           }
           return false;
         }
-      };
-#ifdef CFG_IMU_FULL_COVARIANCE
+      };//END FOR MC
+
       class MM : public LA::AlignedMatrix9x9f {
        public:
         inline MM operator - (const MM &B) const {
@@ -531,66 +515,8 @@ class Camera {
           }
           return false;
         }
-      };
-#else
-      class MM {
-       public:
-        inline void operator += (const MM &A) {
-          for (int i = 0; i < 9; ++i) {
-            m_data[i] += A.m_data[i];
-          }
-          m_Ababa += A.m_Ababa;
-          m_Abwbw += A.m_Abwbw;
-        }
-        inline void operator -= (const MM &A) {
-          for (int i = 0; i < 9; ++i) {
-            m_data[i] -= A.m_data[i];
-          }
-          m_Ababa -= A.m_Ababa;
-          m_Abwbw -= A.m_Abwbw;
-        }
-        inline void MakeMinus() {
-          for (int i = 0; i < 9; ++i) {
-            m_data[i].vmake_minus();
-          }
-          m_Ababa = -m_Ababa;
-          m_Abwbw = -m_Abwbw;
-        }
-        inline LA::Matrix9x9f GetMatrix9x9f() const {
-          LA::Matrix9x9f A;
-          A.MakeZero();
-          for (int i = 0; i < 9; ++i) {
-            memcpy(A[i], m_Amv[i], 12);
-          }
-          A[3][3] = A[4][4] = A[5][5] = m_Ababa;
-          A[6][6] = A[7][7] = A[8][8] = m_Abwbw;
-          return A;
-        }
-        inline void Print(const bool e = false) const {
-          m_Amv.Print(e);
-          if (e) {
-            UT::Print("%e %e\n", m_Ababa, m_Abwbw);
-          } else {
-            UT::Print("%f %f\n", m_Ababa, m_Abwbw);
-          }
-        }
-        static inline void AmB(const MM &A, const MM &B, MM &AmB) {
-          for (int i = 0; i < 9; ++i) {
-            AmB.m_data[i] = A.m_data[i] - B.m_data[i];
-          }
-          AmB.m_Ababa = A.m_Ababa - B.m_Ababa;
-          AmB.m_Abwbw = A.m_Abwbw - B.m_Abwbw;
-        }
-       public:
-        union {
-          struct {
-            LA::AlignedMatrix9x3f m_Amv;
-            float m_Ababa, m_Abwbw;
-          };
-          xp128f m_data[10];
-        };
-      };
-#endif
+      };//END FOR MM FULL_COVARIANCE
+
      public:
       inline void operator += (const Binary &A) {
         m_Acc += A.m_Acc;
@@ -604,7 +530,7 @@ class Camera {
         m_Amc -= A.m_Amc;
         m_Amm -= A.m_Amm;
       }
-#ifdef CFG_IMU_FULL_COVARIANCE
+
       inline void Set(const LA::AlignedMatrix3x3f *Ap, const LA::AlignedMatrix3x3f *Ar,
                       const LA::AlignedMatrix3x3f *Av, const LA::AlignedMatrix3x3f *Aba,
                       const LA::AlignedMatrix3x3f *Abw) {
@@ -620,7 +546,7 @@ class Camera {
         m_Amc.Set(Av, Aba, Abw);
         m_Amm.Set(Av + 2, Aba + 2, Abw + 2);
       }
-#endif
+
       inline void MakeZero() { memset(this, 0, sizeof(Binary)); }
       inline void MakeMinus() {
         m_Acc.MakeMinus();
@@ -658,7 +584,8 @@ class Camera {
       CM m_Acm;
       MC m_Amc;
       MM m_Amm;
-    };
+    };//END FOR Binary
+
    public:
     inline void MakeZero() { memset(this, 0, sizeof(Factor)); }
     inline void Print(const bool e = false, const bool f = false) const {
@@ -678,7 +605,7 @@ class Camera {
    public:
     Unitary m_Au;
     Binary m_Ab;
-  };
+  };//END FOR Factor
 
   class Conditioner {
    public:
@@ -941,37 +868,8 @@ class Camera {
      public:
       xp128f m_wr, m_wp;
       Rotation3D m_RT;
-#ifdef CFG_DEBUG_EIGEN
-     public:
-      class EigenErrorJacobian {
-       public:
-        EigenVector3f m_er, m_ep;
-        EigenMatrix3x3f m_Jr;
-      };
-      class EigenFactor {
-       public:
-        inline void operator = (const Factor &A) {
-          m_A = A.m_A.m_A;
-          m_b = A.m_A.m_b;
-          m_F = A.m_F;
-        }
-        inline void AssertEqual(const Factor &A, const int verbose = 1,
-                                const std::string str = "") const {
-          m_A.AssertEqual(A.m_A.m_A, verbose, str + ".m_A");
-          m_b.AssertEqual(A.m_A.m_b, verbose, str + ".m_b");
-          UT::AssertEqual(m_F, A.m_F, verbose, str + ".m_F");
-        }
-       public:
-        EigenMatrix6x6f m_A;
-        EigenVector6f m_b;
-        float m_F;
-      };
-     public:
-      EigenErrorJacobian EigenGetErrorJacobian(const Rigid3D &T, const float eps) const;
-      EigenFactor EigenGetFactor(const Rigid3D &T, const float eps) const;
-      float EigenGetCost(const Rigid3D &T, const EigenVector6f &e_x, const float eps) const;
-#endif
     };
+
     class Zero {
      public:
       class Factor {
@@ -1016,6 +914,7 @@ class Camera {
      public:
       xp128f m_w;
     };
+
     class PositionZ {
      public:
       class Factor {
@@ -1052,6 +951,7 @@ class Camera {
      public:
       float m_w;
     };
+
     class Motion {
      public:
       class Factor {
@@ -1087,7 +987,6 @@ class Camera {
   };
 
  public:
-
   inline Camera() {}
   inline Camera(const Camera &C) {
     memcpy(this, &C, sizeof(Camera));
@@ -1186,6 +1085,6 @@ class Camera {
   Point3D m_p;
   LA::AlignedVector3f m_v, m_ba, m_bw;
 
-};
+};//END FOR Camera
 
 #endif

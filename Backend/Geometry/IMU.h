@@ -47,7 +47,7 @@ class Measurement {
   }
  public:
   LA::AlignedVector3f m_a, m_w;
-};
+};//END FOR Measurement
 
 class Delta {
  public:
@@ -66,7 +66,8 @@ class Delta {
    public:
     DD m_Fdd;
     DB m_Fdb;
-  };
+  };//END FOR Transition
+
   class Covariance {
    public:
     class DD {
@@ -108,12 +109,12 @@ class Delta {
       LA::AlignedMatrix3x3f m_Prr, m_Prv, m_Prp;
       LA::AlignedMatrix3x3f m_Pvr, m_Pvv, m_Pvp;
       LA::AlignedMatrix3x3f m_Ppr, m_Ppv, m_Ppp;
-    };
+    };//END FOR DD
     class BD {
      public:
       LA::AlignedMatrix3x3f m_Pbav, m_Pbap;
       LA::AlignedMatrix3x3f m_Pbwr, m_Pbwv, m_Pbwp;
-    };
+    };//END FOR BD
     class DB {
      public:
       inline void Get(float **P, const int j) const {
@@ -139,7 +140,7 @@ class Delta {
       LA::AlignedMatrix3x3f m_Prbw;
       LA::AlignedMatrix3x3f m_Pvba, m_Pvbw;
       LA::AlignedMatrix3x3f m_Ppba, m_Ppbw;
-    };
+    };//END FOR DB
     class BB {
      public:
       inline void GetUpper(float **P, const int i, const int j) const {
@@ -157,7 +158,7 @@ class Delta {
       }
      public:
       float m_Pbaba, m_Pbwbw;
-    };
+    };//END FOR BB
    public:
     inline void MakeZero() { memset(this, 0, sizeof(Covariance)); }
     inline void IncreaseDiagonal(const float s2r, const float s2v, const float s2p,
@@ -167,49 +168,29 @@ class Delta {
     }
     inline void SetLowerFromUpper() {
       m_Pdd.SetLowerFromUpper();
-      //m_Pdb.GetTranspose(&m_Pbd);
     }
    public:
     static inline void ABT(const Transition::DD &A, const DD &B, DD *ABT) {
       ABT->m_Prr = B.m_Prr;
       ABT->m_Prv = B.m_Prv;
       ABT->m_Prp = B.m_Prp;
-      //LA::AlignedMatrix3x3f::ABT(A.m_Fvr, B.m_Prr, ABT->m_Pvr);
       SkewSymmetricMatrix::AB(A.m_Fvr, B.m_Prr, ABT->m_Pvr);
       ABT->m_Pvr += B.m_Pvr;
-      //LA::AlignedMatrix3x3f::ABT(A.m_Fvr, B.m_Pvr, ABT->m_Pvv);
       SkewSymmetricMatrix::AB(A.m_Fvr, B.m_Prv, ABT->m_Pvv);
       ABT->m_Pvv += B.m_Pvv;
-      //LA::AlignedMatrix3x3f::ABT(A.m_Fvr, B.m_Ppr, ABT->m_Pvp);
       SkewSymmetricMatrix::AB(A.m_Fvr, B.m_Prp, ABT->m_Pvp);
       ABT->m_Pvp += B.m_Pvp;
-      //LA::AlignedMatrix3x3f::ABT(A.m_Fpr, B.m_Prr, ABT->m_Ppr);
       SkewSymmetricMatrix::AB(A.m_Fpr, B.m_Prr, ABT->m_Ppr);
-      //LA::AlignedMatrix3x3f::AddABTTo(A.m_Fpv, B.m_Prv, ABT->m_Ppr);
       LA::AlignedMatrix3x3f::AddsATo(A.m_Fpv, B.m_Pvr, ABT->m_Ppr);
       ABT->m_Ppr += B.m_Ppr;
-      //LA::AlignedMatrix3x3f::ABT(A.m_Fpr, B.m_Pvr, ABT->m_Ppv);
       SkewSymmetricMatrix::AB(A.m_Fpr, B.m_Prv, ABT->m_Ppv);
-      //LA::AlignedMatrix3x3f::AddABTTo(A.m_Fpv, B.m_Pvv, ABT->m_Ppv);
       LA::AlignedMatrix3x3f::AddsATo(A.m_Fpv, B.m_Pvv, ABT->m_Ppv);
       ABT->m_Ppv += B.m_Ppv;
-      //LA::AlignedMatrix3x3f::ABT(A.m_Fpr, B.m_Ppr, ABT->m_Ppp);
       SkewSymmetricMatrix::AB(A.m_Fpr, B.m_Prp, ABT->m_Ppp);
-      //LA::AlignedMatrix3x3f::AddABTTo(A.m_Fpv, B.m_Ppv, ABT->m_Ppp);
       LA::AlignedMatrix3x3f::AddsATo(A.m_Fpv, B.m_Pvp, ABT->m_Ppp);
       ABT->m_Ppp += B.m_Ppp;
     }
-    //static inline void ABT(const Transition::DD &A, const BD &B, DB *ABT) {
-    //  B.m_Pbwr.GetTranspose(ABT->m_Prbw);
-    //  B.m_Pbav.GetTranspose(ABT->m_Pvba);
-    //  B.m_Pbwv.GetTranspose(ABT->m_Pvbw);
-    //  LA::AlignedMatrix3x3f::AddABTTo(A.m_Fvr, B.m_Pbwr, ABT->m_Pvbw);
-    //  B.m_Pbap.GetTranspose(ABT->m_Ppba);
-    //  LA::AlignedMatrix3x3f::AddABTTo(A.m_Fpv, B.m_Pbav, ABT->m_Ppba);
-    //  B.m_Pbwp.GetTranspose(ABT->m_Ppbw);
-    //  LA::AlignedMatrix3x3f::AddABTTo(A.m_Fpr, B.m_Pbwr, ABT->m_Ppbw);
-    //  LA::AlignedMatrix3x3f::AddABTTo(A.m_Fpv, B.m_Pbwv, ABT->m_Ppbw);
-    //}
+
     static inline void AB(const Transition::DD &A, const DB &B, DB *AB) {
       AB->m_Prbw = B.m_Prbw;
       AB->m_Pvba = B.m_Pvba;
@@ -254,26 +235,18 @@ class Delta {
     }
     static inline void ABTToUpper(const DD &A, const Transition::DD &B, DD *ABT) {
       ABT->m_Prr = A.m_Prr;
-      //LA::AlignedMatrix3x3f::ABT(A.m_Prr, B.m_Fvr, ABT->m_Prv);
       SkewSymmetricMatrix::ABT(A.m_Prr, B.m_Fvr, ABT->m_Prv);
       ABT->m_Prv += A.m_Prv;
-      //LA::AlignedMatrix3x3f::ABT(A.m_Prr, B.m_Fpr, ABT->m_Prp);
       SkewSymmetricMatrix::ABT(A.m_Prr, B.m_Fpr, ABT->m_Prp);
-      //LA::AlignedMatrix3x3f::AddABTTo(A.m_Prv, B.m_Fpv, ABT->m_Prp);
       LA::AlignedMatrix3x3f::AddsATo(B.m_Fpv, A.m_Prv, ABT->m_Prp);
       ABT->m_Prp += A.m_Prp;
       ABT->m_Pvv = A.m_Pvv;
-      //LA::AlignedMatrix3x3f::AddABTToUpper(A.m_Pvr, B.m_Fvr, ABT->m_Pvv);
       SkewSymmetricMatrix::AddABTToUpper(A.m_Pvr, B.m_Fvr, ABT->m_Pvv);
-      //LA::AlignedMatrix3x3f::ABT(A.m_Pvr, B.m_Fpr, ABT->m_Pvp);
       SkewSymmetricMatrix::ABT(A.m_Pvr, B.m_Fpr, ABT->m_Pvp);
-      //LA::AlignedMatrix3x3f::AddABTTo(A.m_Pvv, B.m_Fpv, ABT->m_Pvp);
       LA::AlignedMatrix3x3f::AddsATo(B.m_Fpv, A.m_Pvv, ABT->m_Pvp);
       ABT->m_Pvp += A.m_Pvp;
       ABT->m_Ppp = A.m_Ppp;
-      //LA::AlignedMatrix3x3f::AddABTToUpper(A.m_Ppr, B.m_Fpr, ABT->m_Ppp);
       SkewSymmetricMatrix::AddABTToUpper(A.m_Ppr, B.m_Fpr, ABT->m_Ppp);
-      //LA::AlignedMatrix3x3f::AddABTToUpper(A.m_Ppv, B.m_Fpv, ABT->m_Ppp);
       LA::AlignedMatrix3x3f::AddsAToUpper(B.m_Fpv, A.m_Ppv, ABT->m_Ppp);
     }
     static inline void AddABTToUpper(const DB &A, const Transition::DB &B, DD *ABT) {
@@ -300,9 +273,9 @@ class Delta {
    public:
     DD m_Pdd;
     DB m_Pdb;
-    //BD m_Pbd;
     BB m_Pbb;
-  };
+  };//END FOR Covariance
+
 #ifdef CFG_IMU_FULL_COVARIANCE
   class Weight {
    public:
@@ -457,13 +430,15 @@ class Delta {
     }
    public:
     LA::AlignedVector3f m_er, m_ev, m_ep, m_eba, m_ebw;
-  };
+  };//END FOR Error
+
   class Jacobian {
    public:
     class Gravity {
     public:
       LA::AlignedMatrix2x3f m_JvgT, m_JpgT;
-    };
+    };//END FOR Gravity
+
     class FirstMotion {
      public:
       inline void GetTranspose(FirstMotion &JT) const {
@@ -479,7 +454,8 @@ class Delta {
       LA::AlignedMatrix3x3f m_Jrbw1;
       LA::AlignedMatrix3x3f m_Jvv1, m_Jvba1, m_Jvbw1;
       LA::AlignedMatrix3x3f m_Jpv1, m_Jpba1, m_Jpbw1;
-    };
+    };//END FOR FirstMotion
+
     class Global : public FirstMotion {
      public:
       inline void GetTranspose(Global &JT) const {
@@ -496,7 +472,8 @@ class Delta {
       LA::AlignedMatrix3x3f m_Jpp1;
       LA::AlignedMatrix3x3f m_Jpr1;
       LA::AlignedMatrix3x3f m_Jpr2;
-    };
+    };//END FOR Global
+
     class RelativeLF : public Gravity, public Global {
      public:
       LA::AlignedMatrix3x3f m_Jvr2, m_Jvv2;
@@ -523,6 +500,7 @@ class Delta {
     Error m_e;
     Jacobian::Global m_J;
   };
+
   class Factor {
    public:
     class Unitary {
@@ -554,7 +532,8 @@ class Delta {
       Camera::Factor::Unitary::CC m_Acc;
       Camera::Factor::Unitary::CM m_Acm;
       Camera::Factor::Unitary::MM m_Amm;
-    };
+    };//END FOR Unitary
+
     class Auxiliary {
      public:
       class Global {
@@ -562,117 +541,51 @@ class Delta {
         void Set(const Jacobian::Global &J, const Error &e, const float w, const Weight &W,
                  const float Tpv);
         inline void Get(Unitary *A11, Unitary *A22, Camera::Factor::Binary *A12) const {
-#ifdef CFG_IMU_FULL_COVARIANCE
-          //const LA::AlignedMatrix3x3f *A[10] = {&m_A[ 0], &m_A[ 9], &m_A[17], &m_A[24], &m_A[30],
-          //                                      &m_A[35], &m_A[39], &m_A[42], &m_A[44], &m_A[45]};
           A11->Set(m_A, m_A + 9, m_A + 17, m_A + 24, m_A + 30, m_b);
           A22->Set(m_A + 40, m_A + 44, m_A + 47, m_A + 49, m_A + 50, m_b + 5);
           A12->Set(m_A + 5, m_A + 14, m_A + 22, m_A + 29, m_A + 35);
-#else
-          A11->m_Acc.m_A.Set(m_Ap1p1, m_Ap1r1, m_Ar1r1);
-          A11->m_Acm.Set(m_Ap1v1, m_Ap1ba1, m_Ap1bw1, m_Ar1v1, m_Ar1ba1, m_Ar1bw1);
-          A12->m_Acc.Set(m_Ap1p2, m_Ap1r2, m_Ar1p2, m_Ar1r2);
-          A12->m_Acm.m_Arv = m_Ar1v2;
-          A11->m_Acc.m_b.Set(m_bp1, m_br1);
-
-          A11->m_Amm.m_A.Set(m_Av1v1, m_Av1ba1, m_Av1bw1, m_Aba1ba1, m_Aba1bw1, m_Abw1bw1);
-          A12->m_Amc.Set(m_Av1p2, m_Av1r2, m_Aba1p2, m_Aba1r2, m_Abw1p2, m_Abw1r2);
-          A12->m_Amm.m_Amv.Set(m_Av1v2, m_Aba1v2, m_Abw1v2);
-          A12->m_Amm.m_Ababa = m_Aba1ba2;
-          A12->m_Amm.m_Abwbw = m_Abw1bw2;
-          A11->m_Amm.m_b.Set(m_bv1, m_bba1, m_bbw1);
-
-          A22->m_Acc.m_A.Set(m_Ap2p2, m_Ap2r2, m_Ar2r2);
-          A22->m_Acm.MakeZero();
-          A22->m_Acc.m_b.Set(m_bp2, m_br2);
-          A22->m_Amm.m_A.Set(m_Av2v2, m_Aba2ba2, m_Abw2bw2);
-          A22->m_Amm.m_b.Set(m_bv2, m_bba2, m_bbw2);
-#endif
         }
        public:
         Jacobian::Global m_JT;
         Weight m_W;
-#ifdef CFG_IMU_FULL_COVARIANCE
         LA::AlignedMatrix3x3f m_JTW[10][5], m_A[55];
         LA::AlignedVector3f m_b[10];
-#else
-        LA::AlignedMatrix3x3f m_JTWr1r, m_JTWbw1r;
-        LA::AlignedMatrix3x3f m_JTWr1v, m_JTWv1v, m_JTWba1v, m_JTWbw1v;
-        LA::AlignedMatrix3x3f m_JTWp1p, m_JTWr1p, m_JTWv1p, m_JTWba1p, m_JTWbw1p, m_JTWr2p;
-        LA::SymmetricMatrix3x3f m_Ap1p1, m_Ar1r1, m_Av1v1, m_Aba1ba1, m_Abw1bw1;
-        LA::SymmetricMatrix3x3f m_Ap2p2, m_Ar2r2, m_Av2v2;
-        LA::AlignedVector3f m_bp1, m_br1, m_bv1, m_bba1, m_bbw1, m_bp2, m_br2, m_bv2, m_bba2, m_bbw2;
-        LA::AlignedMatrix3x3f m_Ap1r1, m_Ap1v1, m_Ap1ba1,  m_Ap1bw1,  m_Ap1p2,  m_Ap1r2;
-        LA::AlignedMatrix3x3f          m_Ar1v1, m_Ar1ba1,  m_Ar1bw1,  m_Ar1p2,  m_Ar1r2,  m_Ar1v2;
-        LA::AlignedMatrix3x3f                   m_Av1ba1,  m_Av1bw1,  m_Av1p2,  m_Av1r2,  m_Av1v2;
-        LA::AlignedMatrix3x3f                             m_Aba1bw1, m_Aba1p2, m_Aba1r2, m_Aba1v2;
-        LA::AlignedMatrix3x3f                                        m_Abw1p2, m_Abw1r2, m_Abw1v2;
-        LA::AlignedMatrix3x3f                                                   m_Ap2r2;
-        float m_Aba1ba2, m_Abw1bw2, m_Aba2ba2, m_Abw2bw2;
-#endif
-      };
+      };//END FOR Global
+
       class RelativeLF : public Global {
        public:
         void Set(const Jacobian::RelativeLF &J, const Error &e, const float w, const Weight &W,
                  const float Tpv);
        public:
         LA::AlignedMatrix3x3f m_Jvr2T, m_Jvv2T;
-#ifdef CFG_IMU_FULL_COVARIANCE
         LA::AlignedMatrix2x3f m_JTWg[5];
-#else
-        LA::AlignedMatrix3x3f m_JTWr2v, m_JTWv2v;
-        LA::AlignedMatrix2x3f m_JTWgv, m_JTWgp;
-        LA::AlignedMatrix3x3f m_Ar2v2;
-#endif
         LA::SymmetricMatrix2x2f m_Agg;
-#ifdef CFG_IMU_FULL_COVARIANCE
         LA::AlignedMatrix2x3f m_Agc[10];
-#else
-        LA::AlignedMatrix2x3f m_Agp1, m_Agr1, m_Agv1, m_Agba1, m_Agbw1;
-        LA::AlignedMatrix2x3f m_Agp2, m_Agr2, m_Agv2;
-#endif
         LA::Vector2f m_bg;
-      };
+      };//END FOR RelativeLF
+
       class RelativeKF {
        public:
         void Set(const Jacobian::RelativeKF &J, const Error &e, const float w, const Weight &W,
                  const float Tpv);
-#ifdef CFG_IMU_FULL_COVARIANCE
+
         inline void Get(Unitary *A11, Unitary *A22, Camera::Factor::Binary *A12) const {
           A11->Set(m_Ac, m_Ac + 7, m_Ac + 13, m_bc);
           A22->Set(m_Ac + 21, m_Ac + 25, m_Ac + 28, m_Ac + 30, m_Ac + 31, m_bc + 3);
           A12->Set(m_Ac + 3, m_Ac + 10, m_Ac + 16);
         }
-#endif
+
        public:
         Jacobian::RelativeKF m_JT;
         Weight m_W;
-#ifdef CFG_IMU_FULL_COVARIANCE
         LA::AlignedMatrix3x3f m_JTWc[8][5], m_Ac[36];
         LA::AlignedVector3f m_bc[8];
         LA::AlignedMatrix2x3f m_JTWg[5];
         LA::SymmetricMatrix2x2f m_Agg;
         LA::AlignedMatrix2x3f m_Agc[8];
         LA::Vector2f m_bg;
-#else
-        LA::AlignedMatrix3x3f m_JTWbw1r, m_JTWr2r;
-        LA::AlignedMatrix3x3f m_JTWv1v, m_JTWba1v, m_JTWbw1v, m_JTWr2v, m_JTWv2v;
-        LA::AlignedMatrix3x3f m_JTWv1p, m_JTWba1p, m_JTWbw1p, m_JTWp2p, m_JTWr2p;
-        LA::AlignedMatrix2x3f m_JTWgv, m_JTWgp;
-        LA::SymmetricMatrix3x3f m_Av1v1, m_Aba1ba1, m_Abw1bw1, m_Ap2p2, m_Ar2r2, m_Av2v2;
-        LA::AlignedVector3f m_bv1, m_bba1, m_bbw1, m_bp2, m_br2, m_bv2, m_bba2, m_bbw2;
-        LA::AlignedMatrix3x3f m_Av1ba1,  m_Av1bw1,  m_Av1p2,  m_Av1r2,  m_Av1v2;
-        LA::AlignedMatrix3x3f           m_Aba1bw1, m_Aba1p2, m_Aba1r2, m_Aba1v2;
-        LA::AlignedMatrix3x3f                      m_Abw1p2, m_Abw1r2, m_Abw1v2;
-        LA::AlignedMatrix3x3f                                 m_Ap2r2;
-        LA::AlignedMatrix3x3f                                          m_Ar2v2;
-        float m_Aba1ba2, m_Abw1bw2, m_Aba2ba2, m_Abw2bw2;
-        LA::SymmetricMatrix2x2f m_Agg;
-        LA::AlignedMatrix2x3f m_Agv1, m_Agba1, m_Agbw1, m_Agp2, m_Agr2, m_Agv2;
-        LA::Vector2f m_bg;
-#endif
-      };
-    };
+      };//END FOR RelativeKF
+    };//END FOR Auxiliary
    public:
     inline void MakeZero() { memset(this, 0, sizeof(Factor)); }
    public:
@@ -681,7 +594,8 @@ class Delta {
       struct { float m_data[21], m_F; };
       struct { Unitary m_A11, m_A22; };
     };
-  };
+  };//END FOR Factor
+  
   class Reduction {
    public:
     Error m_e;
@@ -754,7 +668,6 @@ class Delta {
   inline bool Invalid() const { return m_RT.Invalid(); }
   inline void Invalidate() { m_RT.Invalidate(); }
 
-#ifdef CFG_IMU_FULL_COVARIANCE
   inline Rotation3D GetRotationState(const Camera &C1, const Camera &C2) const {
     return Rotation3D(C1.m_T) / C2.m_T;
   }
@@ -769,19 +682,7 @@ class Delta {
     const Rotation3D eR = GetRotationMeasurement(C1, eps) / GetRotationState(C1, C2);
     return eR.GetRodrigues(eps);
   }
-#else
-  inline Rotation3D GetRotationState(const Camera &C1, const Camera &C2) const {
-    return Rotation3D(C2.m_T) / C1.m_T;
-  }
-  inline Rotation3D GetRotationMeasurement(const Camera &C1, const float eps) const {
-    return Rotation3D(m_Jrbw * (C1.m_bw - m_bw), eps) / m_RT;
-  }
-  inline LA::AlignedVector3f GetRotationError(const Camera &C1, const Camera &C2,
-                                              const float eps) const {
-    const Rotation3D eR = GetRotationState(C1, C2) / GetRotationMeasurement(C1, eps);
-    return eR.GetRodrigues();
-  }
-#endif
+
 
   inline LA::AlignedVector3f GetVelocityMeasurement(const Camera &C1) const {
     return m_v + m_Jvba * (C1.m_ba - m_ba) + m_Jvbw * (C1.m_bw - m_bw);
@@ -816,15 +717,7 @@ class Delta {
     return GetPositionState(C1, C2, pu) - GetPositionMeasurement(C1);
   }
   
-#ifdef CFG_DEBUG
-  inline void DebugSetMeasurement(const Camera &C1, const Camera &C2, const Point3D &pu, const float eps) {
-    const LA::AlignedVector3f dba = C1.m_ba - m_ba;
-    const LA::AlignedVector3f dbw = C1.m_bw - m_bw;
-    m_RT = GetRotationState(C1, C2) * Rotation3D(m_Jrbw * dbw, eps);
-    m_v = GetVelocityState(C1, C2) - (m_Jvba * dba + m_Jvbw * dbw);
-    m_p = GetPositionState(C1, C2, pu) - (m_Jpba * dba + m_Jpbw * dbw);
-  }
-#endif
+
   inline void GetError(const Camera &C1, const Camera &C2, const Point3D &pu, Error &e,
                        const float eps) const {
     e.m_er = GetRotationError(C1, C2, eps);
@@ -845,9 +738,7 @@ class Delta {
                               const LA::AlignedVector3f *xp2, const LA::AlignedVector3f *xr2,
                               const LA::AlignedVector3f *xv2, const LA::AlignedVector3f *xba2,
                               const LA::AlignedVector3f *xbw2, Error &e) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(xp1 || xr1 || xv1 || xba1 || xbw1 || xp2 || xr2 || xv2 || xba2 || xbw2);
-#endif
+
     e = Je.m_e;
     if (xp1) {
       if (xp2) {
@@ -982,7 +873,6 @@ class Delta {
   }
   inline void GetErrorJacobian(const Camera &C1, const Camera &C2, const Point3D &pu,
                                Error *e, Jacobian::Global *J, const float eps) const {
-#ifdef CFG_IMU_FULL_COVARIANCE
     const Rotation3D dR = GetRotationState(C1, C2);
     const LA::AlignedVector3f drbw = m_Jrbw * (C1.m_bw - m_bw);
     const Rotation3D eR = m_RT / Rotation3D(drbw, eps) / dR;
@@ -992,17 +882,6 @@ class Delta {
     J->m_Jrr1.MakeMinus();
     J->m_Jrbw1 = J->m_Jrr1 * m_RT * J->m_Jrbw1 * m_Jrbw;
     J->m_Jrr1 = J->m_Jrr1 * eR * C1.m_T;
-#else
-    const Rotation3D dR = GetRotationState(C1, C2);
-    const LA::AlignedVector3f drbw = m_Jrbw * (C1.m_bw - m_bw);
-    const Rotation3D eR = dR * m_RT, eRub = eR / Rotation3D(drbw);
-    eRub.GetRodrigues(e->m_er, eps);
-    Rotation3D::GetRodriguesJacobianInverse(e->m_er, J->m_Jrr1, eps);
-    Rotation3D::GetRodriguesJacobian(drbw.GetMinus(), J->m_Jrbw1, eps);
-    J->m_Jrr1.MakeMinus();
-    J->m_Jrbw1 = J->m_Jrr1 * eR * J->m_Jrbw1 * m_Jrbw;
-    J->m_Jrr1 = J->m_Jrr1 * C2.m_T;
-#endif
 
     e->m_ev = GetVelocityState(C1, C2);
     SkewSymmetricMatrix::AB(e->m_ev, C1.m_T, J->m_Jvr1);
@@ -1034,16 +913,10 @@ class Delta {
     e->m_eba = C1.m_ba - C2.m_ba;
     e->m_ebw = C1.m_bw - C2.m_bw;
 
-    //J->m_Jpp1.MakeZero();
-    //J->m_Jpr1.MakeZero();
-    //J->m_Jpba1.MakeZero();
-    //J->m_Jpbw1.MakeZero();
-    //J->m_Jpr2.MakeZero();
   }
   inline void GetErrorJacobian(const Camera &C1, const Camera &C2, const Point3D &pu,
                                const Rotation3D &Rg, Error *e, Jacobian::RelativeLF *J,
                                const float eps) const {
-#ifdef CFG_IMU_FULL_COVARIANCE
     const Rotation3D dR = GetRotationState(C1, C2);
     const LA::AlignedVector3f drbw = m_Jrbw * (C1.m_bw - m_bw);
     const Rotation3D eR = m_RT / Rotation3D(drbw, eps) / dR;
@@ -1055,18 +928,6 @@ class Delta {
     J->m_Jrr1 = J->m_Jrr1 * eR;
     const Rotation3D R1T = Rg / C1.m_T;
     J->m_Jrr1 = LA::AlignedMatrix3x3f::GetABT(J->m_Jrr1, R1T);
-#else
-    const Rotation3D dR = GetRotationState(C1, C2);
-    const LA::AlignedVector3f drbw = m_Jrbw * (C1.m_bw - m_bw);
-    const Rotation3D eR = dR * m_RT, eRub = eR / Rotation3D(drbw, eps);
-    eRub.GetRodrigues(e->m_er, eps);
-    Rotation3D::GetRodriguesJacobianInverse(e->m_er, J->m_Jrr1, eps);
-    Rotation3D::GetRodriguesJacobian(drbw.GetMinus(), J->m_Jrbw1, eps);
-    J->m_Jrr1.MakeMinus();
-    J->m_Jrbw1 = J->m_Jrr1 * eR * J->m_Jrbw1 * m_Jrbw;
-    const Rotation3D R2T = Rg / C2.m_T;
-    J->m_Jrr1 = LA::AlignedMatrix3x3f::GetABT(J->m_Jrr1, R2T);
-#endif
 
     C1.m_T.ApplyRotation(C2.m_v, e->m_ev);
 #ifdef CFG_IMU_FULL_COVARIANCE
@@ -1096,9 +957,7 @@ class Delta {
     e->m_ev -= v1;
     e->m_ev -= GetVelocityMeasurement(C1);
     //J->m_Jvv1.MakeDiagonal(-1.0);
-#ifdef CFG_DEBUG
-    J->m_Jvv1.Invalidate();
-#endif
+
     m_Jvba.GetMinus(J->m_Jvba1);
     m_Jvbw.GetMinus(J->m_Jvbw1);
 
@@ -1108,10 +967,7 @@ class Delta {
     e->m_ep -= pu;
     e->m_ep -= GetPositionMeasurement(C1);
     R1.GetMinus(J->m_Jpp1);
-    //J->m_Jpv1.MakeDiagonal(-m_Tpv);
-#ifdef CFG_DEBUG
-    J->m_Jpv1.Invalidate();
-#endif
+
     m_Jpba.GetMinus(J->m_Jpba1);
     m_Jpbw.GetMinus(J->m_Jpbw1);
 
@@ -1120,7 +976,7 @@ class Delta {
   }
   inline void GetErrorJacobian(const Camera &C1, const Camera &C2, const Point3D &pu,
                                Error *e, Jacobian::RelativeKF *J, const float eps) const {
-#ifdef CFG_IMU_FULL_COVARIANCE
+
     const Rotation3D dR = GetRotationState(C1, C2);
     const LA::AlignedVector3f drbw = m_Jrbw * (C1.m_bw - m_bw);
     const Rotation3D eR = m_RT / Rotation3D(drbw, eps) / dR;
@@ -1130,25 +986,11 @@ class Delta {
     J->m_Jrbw1 = J->m_Jrr2 * m_RT * J->m_Jrbw1 * m_Jrbw;
     J->m_Jrbw1.MakeMinus();
     J->m_Jrr2 = J->m_Jrr2 * eR;
-#else
-    const Rotation3D dR = GetRotationState(C1, C2);
-    const LA::AlignedVector3f drbw = m_Jrbw * (C1.m_bw - m_bw);
-    const Rotation3D eR = dR * m_RT, eRub = eR / Rotation3D(drbw, eps);
-    eRub.GetRodrigues(e->m_er, eps);
-    Rotation3D::GetRodriguesJacobianInverse(e->m_er, J->m_Jrr2, eps);
-    Rotation3D::GetRodriguesJacobian(drbw.GetMinus(), J->m_Jrbw1, eps);
-    J->m_Jrbw1 = J->m_Jrr2 * eR * J->m_Jrbw1 * m_Jrbw;
-    J->m_Jrbw1.MakeMinus();
-    const Rotation3D R2T = Rotation3D(C1.m_T) / C2.m_T;
-    J->m_Jrr2 = LA::AlignedMatrix3x3f::GetABT(J->m_Jrr2, R2T);
-#endif
+
 
     C1.m_T.ApplyRotation(C2.m_v, e->m_ev);
-#ifdef CFG_IMU_FULL_COVARIANCE
     J->m_Jvv2 = dR;
-#else
-    dR.LA::AlignedMatrix3x3f::GetTranspose(J->m_Jvv2);
-#endif
+
     LA::AlignedMatrix3x3f::Ab(J->m_Jvv2, pu, (float *) &e->m_ep);
     SkewSymmetricMatrix::GetTranspose(e->m_ev, J->m_Jvr2);
     SkewSymmetricMatrix::GetTranspose(e->m_ep, J->m_Jpr2);
@@ -1168,9 +1010,7 @@ class Delta {
     e->m_ev -= v1;
     e->m_ev -= GetVelocityMeasurement(C1);
     //J->m_Jvv1.MakeDiagonal(-1.0);
-#ifdef CFG_DEBUG
-    J->m_Jvv1.Invalidate();
-#endif
+
     m_Jvba.GetMinus(J->m_Jvba1);
     m_Jvbw.GetMinus(J->m_Jvbw1);
 
@@ -1180,16 +1020,15 @@ class Delta {
     e->m_ep -= GetPositionMeasurement(C1);
     //J->m_Jpv1.MakeDiagonal(-m_Tpv);
     //J->m_Jpp2.MakeIdentity();
-#ifdef CFG_DEBUG
-    J->m_Jpv1.Invalidate();
-    J->m_Jpp2.Invalidate();
-#endif
+
     m_Jpba.GetMinus(J->m_Jpba1);
     m_Jpbw.GetMinus(J->m_Jpbw1);
 
     e->m_eba = C1.m_ba - C2.m_ba;
     e->m_ebw = C1.m_bw - C2.m_bw;
   }
+
+  //GBA::UpdateFactorsIMU
   inline void GetFactor(const float w, const Camera &C1, const Camera &C2, const Point3D &pu,
                         Factor *A, Camera::Factor::Binary *A12, Factor::Auxiliary::Global *U,
                         const float eps) const {
@@ -1198,18 +1037,21 @@ class Delta {
     U->Set(A->m_Je.m_J, A->m_Je.m_e, w, m_W, m_Tpv);
     U->Get(&A->m_A11, &A->m_A22, A12);
   }
+
   inline void GetFactor(const float w, const Camera &C1, const Camera &C2, const Point3D &pu,
                         const Rotation3D &Rg, Error *e, Jacobian::RelativeLF *J,
                         Factor::Auxiliary::RelativeLF *U, const float eps) const {
     GetErrorJacobian(C1, C2, pu, Rg, e, J, eps);
     U->Set(*J, *e, w, m_W, m_Tpv);
   }
+
   inline void GetFactor(const float w, const Camera &C1, const Camera &C2, const Point3D &pu,
                         Error *e, Jacobian::RelativeKF *J, Factor::Auxiliary::RelativeKF *U,
                         const float eps) const {
     GetErrorJacobian(C1, C2, pu, e, J, eps);
     U->Set(*J, *e, w, m_W, m_Tpv);
   }
+
   inline float GetCost(const float w, const Error &e) const {
     return GetCost(w, m_W, e);
   }

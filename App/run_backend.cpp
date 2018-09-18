@@ -45,9 +45,6 @@
 
 bool RunSolver(const Configurator &cfgor, const InputSequence &IS, const std::string param = "",
                IBA::Time *tLBA = NULL, IBA::Time *tGBA = NULL
-#ifdef CFG_GROUND_TRUTH
-             , LA::AlignedVectorXf *eps = NULL, LA::AlignedVectorXf *ers = NULL
-#endif
              ) {
   const int nFrms = IS.Size();
   if (nFrms == 0) {
@@ -74,10 +71,7 @@ bool RunSolver(const Configurator &cfgor, const InputSequence &IS, const std::st
   const int history = (cfgor.GetArgument("history_lba", IBA_HISTORY_NONE) & 255) |
                      ((cfgor.GetArgument("history_gba", IBA_HISTORY_NONE) & 255) << 8);
   solver.Create(IS.m_K, serial, verbose, debug, history, param, IS.m_dir
-#ifdef CFG_GROUND_TRUTH
-              , IS.m_XsGT.empty() ? NULL : &IS.m_XsGT
-              , IS.m_dsGT.empty() ? NULL : &IS.m_dsGT
-#endif
+
               );
 #ifndef WIN32
     if (cfgor.GetArgument("serial_lba", IBA_SERIAL_NONE) > 0) {
@@ -104,11 +98,7 @@ bool RunSolver(const Configurator &cfgor, const InputSequence &IS, const std::st
 #else
   const int iFrmStart = -1;
 #endif
-#ifdef CFG_DEBUG_MT
-  MT::Start(UT::FileNameReplaceDirectory(cfgor.GetArgument("multi_thread_file"), ".", IS.m_dir),
-            (cfgor.GetArgument("multi_thread_save", 0) != 0 ? MT_FLAG_SAVE : MT_FLAG_DEFAULT) |
-            (cfgor.GetArgument("multi_thread_load", 0) != 0 ? MT_FLAG_LOAD : MT_FLAG_DEFAULT));
-#endif
+
 
   IBA::CurrentFrame CF;
   IBA::KeyFrame KF;
@@ -117,36 +107,10 @@ bool RunSolver(const Configurator &cfgor, const InputSequence &IS, const std::st
   std::vector<IBA::CameraPose> Cs;
   IBA::SlidingWindow SW;
   std::vector<int> idxs;
-#if 0
-//#if 1
-  std::vector<IBA::Point3D> Xs;
-#endif
+
   // IBA::Error eLBA, eGBA;
   const int print = cfgor.GetArgument("print_camera", 0);
-#ifdef CFG_GROUND_TRUTH
-  Rotation3D eR;
-  LA::AlignedVector3f ep, er;
-  LA::AlignedMatrix6x6f S;
-  float epl, erl;
-  if (eps) {
-    eps->Resize(0);
-  }
-  if (ers) {
-    ers->Resize(0);
-  }
-  const AlignedVector<Camera> &CsGT = IS.m_CTGT.m_Cs;
-  const float loopRatio = cfgor.GetArgument("loop_ratio", 0.0f);
-  const bool zGT = !CsGT.Empty() && cfgor.GetArgument("loop_mean_gt", 0) != 0;
-  const bool eGT = !CsGT.Empty() && cfgor.GetArgument("loop_variance_gt", 0) != 0;
-  const float s2p = cfgor.GetArgumentSquared("loop_variance_position", 0.0f);
-  const float s2r = cfgor.GetArgumentRadianSquared("loop_variance_rotation", 0.0f);
-  const float epMax = cfgor.GetArgument("loop_max_error_position", 1000.0f);
-  const float erMax = cfgor.GetArgumentRadian("loop_max_error_rotation", 1000.0f);
-  const float updRatioFrq = cfgor.GetArgument("update_camera_ratio_frequency", 0.0f);
-  const float updRatioNum = cfgor.GetArgument("update_camera_ratio_number", 0.0f);
-  const float npMax = cfgor.GetArgument("update_camera_noise_position", 0.0f);
-  const float nrMax = cfgor.GetArgumentRadian("update_camera_noise_rotation", 0.0f);
-#endif
+
   const float dkfRatio = cfgor.GetArgument("delete_keyframe_ratio", 0.0f);
   const float dmpRatioFrq = cfgor.GetArgument("delete_map_point_ratio_frequency", 0.0f);
   const float dmpRatioNum = cfgor.GetArgument("delete_map_point_ratio_number", 0.0f);
@@ -159,58 +123,13 @@ bool RunSolver(const Configurator &cfgor, const InputSequence &IS, const std::st
     if (!seeds.empty()) {
       srand(seeds[iFrm]);
     }
-//#ifdef IBA_WITH_CVD
-#if 0
-    if (!viewer.Run(visualize >= 2)) {
-      break;
-    }
-#endif
-// #ifdef CFG_DEBUG
-#if 0
-    UT::Print("[%d] %d\n", iFrm, UT::Random<int>(RAND_MAX));
-#endif
+
     IS.LoadCurrentFrame(iFrm, &CF, &KF, &solver);
-#ifdef CFG_DEBUG
-    UT_ASSERT(CF.iFrm == iFrm);
-#endif
+
     solver.PushCurrentFrame(CF, KF.iFrm == -1 ? NULL : &KF);
-    //UT::Print("[%d] %f\n", iFrm, Timer::GetTime() - t1);
-// #ifdef CFG_DEBUG
-#if 0
-// #if 1
-    const std::string fileName = UT::FileNameRemoveDirectory(IS.m_filesFtr[iFrm]);
-    solver.SaveFeatures(IS.m_dir + "l_det/" + fileName + ".yml",
-                        IS.m_dir + "r_det/" + fileName + ".yml", CF, KF);
-#endif
+
     if (IS.LoadRelativeConstraint(iFrm, &Z)) {
-#ifdef CFG_GROUND_TRUTH
-      if ((zGT || eGT) && !CsGT.Empty()) {
-        const Rigid3D TGT = CsGT[Z.iFrm2].m_T / CsGT[Z.iFrm1].m_T;
-        const Rotation3D RGT = TGT;
-        const Point3D pGT = TGT.GetPosition();
-        if (zGT) {
-          RGT.Get(Z.T.R);
-          pGT.Get(Z.T.p);
-        }
-        if (eGT) {
-          ep = pGT - Point3D(Z.T.p);
-          er = (RGT / Rotation3D(Z.T.R)).GetRodrigues(BA_ANGLE_EPSILON);
-          epl = sqrtf(ep.SquaredLength());
-          erl = sqrtf(er.SquaredLength());
-          if (epl < epMax && erl < erMax) {
-            if (eps) {
-              eps->Push(epl);
-            }
-            if (ers) {
-              ers->Push(erl);
-            }
-          } else {
-             //UT::Print("Removed [%d, %d] ep = %f, er = %f\n", Z.iFrm1, Z.iFrm2, epl, erl);
-            Z.iFrm1 = Z.iFrm2 = -1;
-          }
-        }
-      }
-#endif
+
       S.MakeDiagonal(s2p, s2r);
       S.Get(Z.S.S);
       solver.PushRelativeConstraint(Z);
@@ -244,94 +163,8 @@ bool RunSolver(const Configurator &cfgor, const InputSequence &IS, const std::st
           IBA::PrintCameraPose(iFrmLast, SW.CsLF[j].C, print > 1);
         }
       }
-#if 0
-//#if 1
-      const int nLFs = static_cast<int>(SW.iFrms.size());
-      for (int i = 0; i < nLFs; ++i) {
-        const std::pair<float, float> &e = SW.esLF[i];
-        if (i == 0) {
-          UT::Print("LF\n");
-        }
-        UT::Print("  [%d] %f %f\n", SW.iFrms[i], e.first, e.second);
-      }
-      const int nKFs = static_cast<int>(SW.iFrmsKF.size());
-      for (int i = 0; i < nKFs; ++i) {
-        const std::pair<float, float> &e = SW.esKF[i];
-        if (i == 0) {
-          UT::Print("KF\n");
-        }
-        UT::Print("  [%d] %f %f\n", SW.iFrmsKF[i], e.first, e.second);
-      }
-#endif
-#if 0
-//#if 1
-      const int N = static_cast<int>(SW.Xs.size());
-      for (int i = 0; i < N; ++i) {
-        const IBA::Point3D &X = SW.Xs[i];
-        const int _N = static_cast<int>(Xs.size());
-        if (X.idx >= _N) {
-          Xs.resize(X.idx + 1);
-          for (int idx = _N; idx < X.idx; ++idx) {
-            Xs[idx].idx = -1;
-          }
-        }
-        Xs[X.idx] = X;
-      }
-      IBA::PrintPoints(Xs);
-#endif
     }
-#ifdef CFG_GROUND_TRUTH
-    if (!CsGT.Empty()) {
-      if (loopRatio > 0.0f && KF.iFrm != -1) {
-        const int nKFs = solver.GetKeyFrames();
-        if (nKFs >= 2 && (loopRatio < 0.0f || UT::Random<float>() < loopRatio)) {
-          const int iKF2 = nKFs - 1;
-          while (1) {
-            //Z.iFrm2 = UT::Random<int>(iFrm + 1);
-            Z.iFrm2 = iFrm;
-            if (loopRatio < 0.0f) {
-              Z.iFrm1 = solver.GetKeyFrameIndex(iKF2 - 1);
-            } else {
-              const int iKF1 = UT::Random<int>(iKF2);
-              Z.iFrm1 = solver.GetKeyFrameIndex(iKF1);
-            }
-            const Rigid3D T = CsGT[Z.iFrm2].m_T / CsGT[Z.iFrm1].m_T;
-            T.Rotation3D::Get(Z.T.R);
-            T.GetPosition().Get(Z.T.p);
-            S.MakeDiagonal(s2p, s2r);
-            S.Get(Z.S.S);
-            if (solver.PushRelativeConstraint(Z)) {
-              break;
-            }
-          }
-        }
-      }
-      if (updRatioFrq > 0.0f && UT::Random<float>() < updRatioFrq) {
-        iFrms.resize(0);
-        const int nKFs = solver.GetKeyFrames();
-        for (int iKF = 0; iKF < nKFs; ++iKF) {
-          if (UT::Random<float>() < updRatioNum) {
-            iFrms.push_back(solver.GetKeyFrameIndex(iKF));
-          }
-        }
-        const int N = static_cast<int>(iFrms.size());
-        Cs.resize(N);
-        for (int i = 0; i < N; ++i) {
-          const int jFrm = iFrms[i];
-          const Camera &CGT = CsGT[jFrm];
-          eR.Random(nrMax);
-          const Rotation3D R = Rotation3D(CGT.m_T) / eR;
-          ep.Random(npMax);
-          const LA::AlignedVector3f p = CGT.m_p - ep;
-          R.Get(Cs[i].R);
-          p.Get(Cs[i].p);
-        }
-        if (N > 0) {
-          solver.UpdateCameras(iFrms, Cs);
-        }
-      }
-    }
-#endif
+
     if (dkfRatio > 0.0f && UT::Random<float>() < dkfRatio) {
       //const int iFrm0 = SW.iFrms.front();
       const int iFrm0 = iFrm - LBA_MAX_LOCAL_FRAMES + 1;
@@ -381,21 +214,10 @@ bool RunSolver(const Configurator &cfgor, const InputSequence &IS, const std::st
     printf("\n");
   }
   solver.Stop();
-#ifdef CFG_VERBOSE
-  const float eLBA = solver.ComputeRMSELBA(), eGBA = solver.ComputeRMSEGBA();
-  const float Sdist = solver.GetTotalDistance();
-  UT::PrintSeparator();
-  UT::Print("RMSE\n");
-  UT::Print("  LBA = %f / %f = %f%%\n", eLBA, Sdist, UT::Percentage(eLBA, Sdist));
-  UT::Print("  GBA = %f / %f = %f%%\n", eGBA, Sdist, UT::Percentage(eGBA, Sdist));
-#else
+
   UT::Print("%.2f\t%.2f * %d\n", tLBA->t / tLBA->n, tGBA->t / tGBA->n, tGBA->n);
-#endif
-//#ifdef CFG_DEBUG
-#if 0
-//#if 1
-  IBA::PrintPoints(Xs);
-#endif
+
+
   const bool append = cfgor.GetArgument("output_append", 1) != 0;
   const bool poseOnly = cfgor.GetArgument("output_camera_pose_only", 1) != 0;
   solver.SaveCamerasLBA(cfgor.GetArgument("output_camera_file_lba"), append, poseOnly);
@@ -406,26 +228,13 @@ bool RunSolver(const Configurator &cfgor, const InputSequence &IS, const std::st
   solver.SaveCostsGBA(cfgor.GetArgument("output_cost_file_gba_b"), append, 1);
   solver.SaveCostsLBA(cfgor.GetArgument("output_cost_file_lba_p"), append, 2);
   solver.SaveCostsGBA(cfgor.GetArgument("output_cost_file_gba_p"), append, 2);
-#ifdef CFG_GROUND_TRUTH
-  solver.SaveCostsLBA(cfgor.GetArgument("output_cost_file_lba_a_gt"), append, 3);
-  solver.SaveCostsGBA(cfgor.GetArgument("output_cost_file_gba_a_gt"), append, 3);
-  solver.SaveCostsLBA(cfgor.GetArgument("output_cost_file_lba_p_gt"), append, 4);
-  solver.SaveCostsGBA(cfgor.GetArgument("output_cost_file_gba_p_gt"), append, 4);
-#endif
+
   solver.SaveResidualsLBA(cfgor.GetArgument("output_residual_file_lba"), append);
   solver.SaveResidualsGBA(cfgor.GetArgument("output_residual_file_gba"), append);
-#ifdef CFG_GROUND_TRUTH
-  solver.SaveResidualsLBA(cfgor.GetArgument("output_residual_file_lba_gt"), append, 1);
-  solver.SaveResidualsGBA(cfgor.GetArgument("output_residual_file_gba_gt"), append, 1);
-  solver.SavePriors(cfgor.GetArgument("output_prior_file"), append, 0);
-  solver.SavePriors(cfgor.GetArgument("output_prior_file_kf"), append, 1);
-  solver.SavePriors(cfgor.GetArgument("output_prior_file_lf"), append, 2);
-#endif
+
   solver.SaveMarginalizations(cfgor.GetArgument("output_marg_file_lp"), append, 0);
   solver.SaveMarginalizations(cfgor.GetArgument("output_marg_file_em"), append, 1);
-#ifdef CFG_GROUND_TRUTH
-  solver.SaveMarginalizations(cfgor.GetArgument("output_marg_file_gt"), append, 2);
-#endif
+
   solver.SavePointsLBA(cfgor.GetArgument("output_point_file_lba"), append);
   solver.SavePointsGBA(cfgor.GetArgument("output_point_file_gba"), append);
   if (tLBA) {
@@ -436,35 +245,17 @@ bool RunSolver(const Configurator &cfgor, const InputSequence &IS, const std::st
   }
   solver.SaveTimesLBA(cfgor.GetArgument("output_time_file_lba"), append);
   solver.SaveTimesGBA(cfgor.GetArgument("output_time_file_gba"), append);
-#if defined CFG_VERBOSE && defined CFG_GROUND_TRUTH
-  if (eps && ers && !eps->Empty() && !ers->Empty()) {
-    const float ep = eps->Mean(), s2p = eps->Variance(ep), epMax = eps->Maximal();
-    const float er = ers->Mean(), s2r = ers->Variance(er), erMax = ers->Maximal();
-    UT::PrintSeparator();
-    UT::Print("Relative constraint\n");
-    UT::Print("  ep = %f +- %f <= %f (%d)\n", ep, sqrtf(s2p), epMax, eps->Size());
-    UT::Print("  er = %f +- %f <= %f (%d)\n", er * UT_FACTOR_RAD_TO_DEG,
-                                              sqrtf(s2r) * UT_FACTOR_RAD_TO_DEG,
-                                              erMax * UT_FACTOR_RAD_TO_DEG, ers->Size());
-  }
-#endif
+
   if (tLBA && tGBA) {
-#ifdef CFG_VERBOSE
-    UT::PrintSeparator();
-    UT::Print("Time\n");
-    UT::Print("  LBA = %f / %d = %f ms\n", tLBA->t, tLBA->n, tLBA->t / tLBA->n);
-    UT::Print("  GBA = %f / %d = %f ms\n", tGBA->t, tGBA->n, tGBA->t / tGBA->n);
-#else
+
     UT::Print("%.2f\t%.2f * %d\n", tLBA->t / tLBA->n, tGBA->t / tGBA->n, tGBA->n);
-#endif
+
   }
   UT::PrintStop();
 #ifdef IBA_WITH_CVD
   viewer.Stop(cfgor.GetArgument("view_file_save"), visualize == 1 || pause >= 1);
 #endif
-#ifdef CFG_DEBUG_MT
-  MT::Stop();
-#endif
+
   solver.Destroy();
   return true;
 }
@@ -482,29 +273,7 @@ bool RunConfig(const std::string &fileName) {
     StLBA.n = StGBA.n = 0;
     // StLBA.nd = StGBA.nd = 0;
     std::vector<std::string> seqName;
-#if 0
-    const std::string dataName[2] = {"ASL-EuRoC", "PennCOSYVIO"};
-    if (dir.find(dataName[0]) != std::string::npos) {
-      seqName.push_back("MH_01_easy");
-      seqName.push_back("MH_02_easy");
-      seqName.push_back("MH_03_medium");
-      seqName.push_back("MH_04_difficult");
-      seqName.push_back("MH_05_difficult");
-      seqName.push_back("V1_01_easy");
-      seqName.push_back("V1_02_medium");
-      seqName.push_back("V1_03_difficult");
-      seqName.push_back("V2_01_easy");
-      seqName.push_back("V2_02_medium");
-      seqName.push_back("V2_03_difficult");
-    } else if (dir.find(dataName[1]) != std::string::npos) {
-      seqName.push_back("af");
-      seqName.push_back("as");
-      seqName.push_back("bf");
-      seqName.push_back("bs");
-    } else {
-      return false;
-    }
-#endif
+
     const std::string listName = dir + cfgor.GetArgument("input_sequence_list", "list.txt");
     FILE *fp = fopen(listName.c_str(), "r");
     if (!fp) {
@@ -523,9 +292,7 @@ bool RunConfig(const std::string &fileName) {
     }
     fclose(fp);
     UT::PrintLoaded(listName);
-#ifdef CFG_GROUND_TRUTH
-    LA::AlignedVectorXf eps, ers, Eps, Ers;
-#endif
+
     cfgor.SetArgument("save_file", "");
     cfgor.SetArgument("visualize", 0);
     cfgor.SetArgument("pause", 0);
@@ -533,70 +300,29 @@ bool RunConfig(const std::string &fileName) {
     cfgor.SetArgument("verbose_gba", 0);
     const int N = static_cast<int>(seqName.size());
     for (int i = 0; i < N; ++i) {
-//#ifdef CFG_DEBUG
-#if 0
-//#if 1
-      if (i == 0) {
-        cfgor.SetArgument("save_file", "D:/tmp/ost.txt");
-        cfgor.SetArgument("save_frame", 3681);
-      } else {
-        cfgor.SetArgument("save_file", "");
-        //cfgor.SetArgument("visualize", 2);
-        //cfgor.SetArgument("pause", 2);
-        //cfgor.SetArgument("verbose_lba", 3);
-      }
-#endif
-#ifdef CFG_VERBOSE
-      UT::PrintSeparator('*');
-      UT::Print("%s\n", seqName[i].c_str());
-#else
+
+
       UT::Print("%s\t", seqName[i].c_str());
-#endif
+
       cfgor.SetArgument("input_directory", dir + seqName[i] + "/");
 // #ifdef CFG_GROUND_TRUTH
 //    cfgor.SetArgument("input_ground_truth_time_first", tFirstGT[i]);
 // #endif
       const InputSequence IS(cfgor);
-#ifdef CFG_GROUND_TRUTH
-      if (!RunSolver(cfgor, IS, fileName, &tLBA, &tGBA, &eps, &ers)) {
-#else
+
       if (!RunSolver(cfgor, IS, fileName, &tLBA, &tGBA)) {
-#endif
+
         return false;
       }
-#ifdef CFG_GROUND_TRUTH
-      if (!eps.Empty() && !ers.Empty()) {
-        Eps.Push(eps);
-        Ers.Push(ers);
-      }
-#endif
+
       StLBA.t += tLBA.t;  StLBA.n += tLBA.n;
       StGBA.t += tGBA.t;  StGBA.n += tGBA.n;
       // StLBA.nd += tLBA.nd;
       // StGBA.nd += tGBA.nd;
     }
-#ifdef CFG_VERBOSE
-    if (!Eps.Empty() && !Ers.Empty()) {
-      UT::PrintSeparator('*');
-      UT::Print("Relative constraint\n");
-      const float Ep = Eps.Mean(), S2p = Eps.Variance(Ep), EpMax = Eps.Maximal();
-      const float Er = Ers.Mean(), S2r = Ers.Variance(Er), ErMax = Ers.Maximal();
-      UT::Print("  Ep = %f +- %f <= %f (%d)\n", Ep, sqrtf(S2p), EpMax, Eps.Size());
-      UT::Print("  Er = %f +- %f <= %f (%d)\n", Er * UT_FACTOR_RAD_TO_DEG,
-                                                sqrtf(S2r) * UT_FACTOR_RAD_TO_DEG,
-                                                ErMax * UT_FACTOR_RAD_TO_DEG, Ers.Size());
-    }
-#endif
-#ifdef CFG_VERBOSE
-    UT::PrintSeparator('*');
-    UT::Print("Time\n");
-    UT::Print("  LBA = %f / %d = %f ms\n", StLBA.t, StLBA.n, StLBA.t / StLBA.n);
-    UT::Print("  GBA = %f / %d = %f ms\n", StGBA.t, StGBA.n, StGBA.t / StGBA.n);
-    // UT::Print("  LBA = %d / %d = %f points\n", StLBA.nd, StLBA.n, float(StLBA.nd) / StLBA.n);
-    // UT::Print("  GBA = %d / %d = %f points\n", StGBA.nd, StGBA.n, float(StGBA.nd) / StGBA.n);
-#else
+
     UT::Print("Total\t\t%.2f\t%.2f * %d\n", StLBA.t / StLBA.n, StGBA.t / StGBA.n, StGBA.n);
-#endif
+
     return true;
   }
 }

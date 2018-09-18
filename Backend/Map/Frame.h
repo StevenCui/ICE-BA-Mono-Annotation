@@ -196,15 +196,9 @@ class Frame {
   inline void DeleteFeatureMeasurementsPrepare(const std::vector<int> &izsDel,
                                                std::vector<int> *izs) const {
     const int N = static_cast<int>(izsDel.size());
-#ifdef CFG_DEBUG
-    UT_ASSERT(N > 0);
-#endif
     const int Nz = static_cast<int>(m_zs.size());
     izs->resize(Nz + 1);
     for (int iz1 = 0, iz2 = 0, i = 0, jz = izsDel[i]; iz1 < Nz; ++iz1) {
-#ifdef CFG_DEBUG
-      UT_ASSERT(jz >= iz1);
-#endif
       if (iz1 == jz) {
         izs->at(iz1) = -1;
         jz = ++i == N ? Nz : izsDel[i];
@@ -216,18 +210,6 @@ class Frame {
   }
   inline void DeleteFeatureMeasurements(const std::vector<int> &izs) {
     const int Nz1 = static_cast<int>(m_zs.size());
-#ifdef CFG_DEBUG
-    UT_ASSERT(static_cast<int>(izs.size()) == Nz1 + 1);
-    int zCnt = 0;
-    for (int iz1 = 0, iz2 = 0; iz1 < Nz1; ++iz1) {
-      if (izs[iz1] >= 0) {
-        UT_ASSERT(izs[iz1] == iz2++);
-      } else {
-        ++zCnt;
-      }
-    }
-    UT_ASSERT(izs.back() == Nz1 - zCnt);
-#endif
     for (int iz1 = 0; iz1 < Nz1; ++iz1) {
       const int iz2 = izs[iz1];
       if (iz2 >= 0) {
@@ -330,10 +312,6 @@ class Frame {
     }
   }
   inline void PopFrameMeasurement() {
-#ifdef CFG_DEBUG
-    UT_ASSERT(!m_Zs.empty() && !m_iKFsMatch.empty() && m_Zs.back().m_iKF == m_iKFsMatch.back() &&
-              m_Zs.back().m_ik == static_cast<int>(m_iKFsMatch.size()) - 1);
-#endif
     m_Zs.resize(m_Zs.size() - 1);
     if (m_Zs.empty()) {
       m_zs.resize(0);
@@ -482,13 +460,6 @@ class Frame {
       ik = std::lower_bound(ik, m_iKFsMatch.end(), Z.m_iKF);
       UT_ASSERT(ik != m_iKFsMatch.end() && *ik == Z.m_iKF);
     }
-#ifdef CFG_STEREO
-    const int Nz = static_cast<int>(m_zs.size());
-    for (int iz = 0; iz < Nz; ++iz) {
-      const FTR::Measurement &z = m_zs[iz];
-      UT_ASSERT(z.m_z.Valid() || z.m_zr.Valid());
-    }
-#endif
   }
  public:
   Tag m_T;
@@ -565,12 +536,6 @@ class MeasurementMatch {
     }
     m_izms.insert(m_izms.end(), izms.begin(), izms.end());
     m_Mczms.InsertZero(Nzm1, Nzm, NULL);
-//#ifdef CFG_DEBUG
-#if 0
-    for (int i = Nzm1; i < Nzm2; ++i) {
-      m_Mczms[i].Invalidate();
-    }
-#endif
   }
   inline void DeleteFeatureMeasurementMatches(const int ik, const int i1, const int i2,
                                               const ubyte *ms = NULL) {
@@ -607,9 +572,6 @@ class MeasurementMatch {
         const FTR::Measurement::Match &izm = m_izms[i];
         Camera::Factor::Binary::CC &Mczm = m_Mczms[i];
         const int iz1 = izs1[izm.m_iz1], iz2 = izs2[izm.m_iz2];
-#ifdef CFG_DEBUG
-        UT_ASSERT(iz1 >= 0 && iz2 >= 0 || iz1 == iz2);
-#endif
         if (iz1 < 0) {
           //if (iz1 == -1) {
           if (ms && ms->at(i) || !ms && iz1 == -1) {

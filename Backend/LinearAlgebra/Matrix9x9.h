@@ -145,19 +145,11 @@ template<> inline void Matrix9x9d::SetBlock(const int i, const int j, const Matr
   }
 }
 template<> inline void Matrix9x9f::GetBlock(const int i, const int j, Matrix3x3f &M) const {
-#ifdef CFG_DEBUG
-  UT_ASSERT(i >= 0 && i + 3 <= 9);
-  UT_ASSERT(j >= 0 && j + 3 <= 9);
-#endif
   memcpy(M[0], m_data[i] + j, 12);
   memcpy(M[1], m_data[i + 1] + j, 12);
   memcpy(M[2], m_data[i + 2] + j, 12);
 }
 template<> inline void Matrix9x9d::GetBlock(const int i, const int j, Matrix3x3f &M) const {
-#ifdef CFG_DEBUG
-  UT_ASSERT(i >= 0 && i + 3 <= 9);
-  UT_ASSERT(j >= 0 && j + 3 <= 9);
-#endif
   for (int _i = 0; _i < 3; ++_i) {
     for (int _j = 0; _j < 3; ++_j) {
       M[_i][_j] = static_cast<float>(m_data[i + _i][j + _j]);

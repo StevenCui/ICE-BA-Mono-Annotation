@@ -107,8 +107,9 @@ void GlobalBundleAdjustor::UpdateFactorsFeature()
 {
   //Tr[0] is T_cz_from_cx
   Rigid3D Tr[2];
-  //Factors that need to update in visual  
+  //dadx.m_adc is J_Tz^T * J_dj
   FTR::Factor::DDC dadx;
+
   Camera::Factor::Unitary::CC dAcxx, dAczz;
   Camera::Factor::Binary::CC dAcxz;
   FTR::Factor::Full::U U;
@@ -125,15 +126,15 @@ void GlobalBundleAdjustor::UpdateFactorsFeature()
     const bool ucz = (m_ucs[iKF] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0;
     
     //m_SAcus is triangle matrix in U
-    //SAczz is J_cz^T * J_cz
+    //SAczz contains m_A(J_cz^T * J_cz), m_r(?) and m_b(J_cz^T * e)
     Camera::Factor::Unitary::CC &SAczz = m_SAcus[iKF];
-    //m_Zs is the source KeyFrame from which measurements are extracted 
+    //m_Zs is the source KeyFrame from which the current measurements are extracted 
     const int NZ = int(KF.m_Zs.size());
     for (int iZ = 0; iZ < NZ; ++iZ) 
     {
       //Z is the source keyframe measurements
       const FRM::Measurement &Z = KF.m_Zs[iZ];
-      //m_iKF is the id of camera cx that is the source frame from which j-th point is extracted 
+      //m_iKF is the id of the source camera cx
       const int _iKF = Z.m_iKF;
 
       //ucx is false if cx was re-linearized last iteration
@@ -145,24 +146,23 @@ void GlobalBundleAdjustor::UpdateFactorsFeature()
       //m_Cs[_iKF] is T_cx_from_w, Tr is T_cz_from_cx 
       *Tr = C / m_Cs[_iKF];
 
-      //m_iKF2d?
+      //m_iKF2d is the feature id for the source frame cx
       const int id = m_iKF2d[_iKF];
       const Depth::InverseGaussian *_ds = m_ds.data() + id;
       ubyte *_uds = m_uds.data() + id;
-      //SAcxx is the Hession of source frame cx, J_cx^T * J_cx
+      //SAcxx contains m_A(J_cx^T * J_cx), m_r(J_xj^T * e_cx_cz_j) and m_b(J_cx^T * e)
       Camera::Factor::Unitary::CC &SAcxx = m_SAcus[_iKF];
-      //SAcxz is the upper triangle matrix of U, J_cx^T * J_cz 
+      //SAcxz is J_cx^T * J_cz 
       Camera::Factor::Binary::CC &SAcxz = KF.m_SAcxzs[iZ];
 
       //_KF is the source frame cx 
       KeyFrame &_KF = m_KFs[_iKF];
-      //m_iz1 and m_iz2 is the feature id in cz
+      //m_iz1 and m_iz2 is the feature id in measurement frame cz
       for (int iz = Z.m_iz1; iz < Z.m_iz2; ++iz) 
       {
-        //m_zs is the feature in source frame cx
-        //iz is the feature id in measurement frame cz
+        //m_zs is the feature infomation in source frame cx        
         const FTR::Measurement &z = KF.m_zs[iz];
-        //m_ix is the landmark id in the source keyframe
+        //ix is the map point id in the source keyframe cx
         const int ix = z.m_ix;
         //ud is false if landmark's depth was re-linearized last iteration
         const bool ud = (_uds[ix] & GBA_FLAG_TRACK_UPDATE_DEPTH) != 0;
@@ -170,7 +170,7 @@ void GlobalBundleAdjustor::UpdateFactorsFeature()
           continue;
         }
         //m_Azs2 are all Hession blocks that relate to this visual residua, 
-        //and include H_d_d, H_cx_cz, H_cx_cx, H_cz_cz
+        //and include H_d_d, A_cx_cz, A_cx_cx, A_cz_cz, b_cx_e, b_cz_e
         FTR::Factor::Full::A2 &A = KF.m_Azs2[iz];
         if (!ud) {
           dadx = A.m_adx;
@@ -185,8 +185,9 @@ void GlobalBundleAdjustor::UpdateFactorsFeature()
           dAczz = A.m_Aczz;
         }
         //caculate the Jacobian
-        FTR::GetFactor<GBA_ME_FUNCTION>(BA_WEIGHT_FEATURE, Tr, _KF.m_xs[ix], _ds[ix], C, z,
-                                        &KF.m_Lzs[iz], &KF.m_Azs1[iz], &A, &U);
+        FTR::GetFactor<GBA_ME_FUNCTION>(
+          BA_WEIGHT_FEATURE, Tr, _KF.m_xs[ix], _ds[ix], 
+          C, z, &KF.m_Lzs[iz], &KF.m_Azs1[iz], &A, &U);
         //ud is true that means depth is not changed last iteration
         //m_Axs are Hession blocks that relate to all landmarks in cx
         if (ud) {
@@ -384,11 +385,10 @@ void GlobalBundleAdjustor::UpdateFactorsPriorDepth() {
 }
 
 void GlobalBundleAdjustor::UpdateFactorsIMU() {
-  //dAcc1 is J_c1^T * J_c1
-  //dAcc2 is J_c2^T * J_c2
+  //dAcc1 is m_A(J_c1^T * J_c1), m_r(?) and m_b(J_c1^T * eb12)
+  //dAcc2 is m_A(J_c2^T * J_c2), m_r(?) and m_b(J_c2^T * eb12)
   Camera::Factor::Unitary::CC dAcc1, dAcc2;
-  //dAcm1.m_Acm = J_c1^T * J_m1, size is 6*9
-  //dAcm1.m_Amm = J_m1^T * J_m1, size is 9*9
+  //dAcm1 is m_Acm(J_c1^T * J_m1) and m_Amm (J_m1^T * J_m1)
   Camera::Factor::Unitary dAcm1, dAcm2;
   IMU::Delta::Factor::Auxiliary::Global U;
 
@@ -566,6 +566,7 @@ void GlobalBundleAdjustor::UpdateFactorsFixMotion() {
 }
 
 void GlobalBundleAdjustor::UpdateSchurComplement() {
+  //nKFs is the number of all KF in GBA
   const int nKFs = static_cast<int>(m_KFs.size());
   for (int iKF = 0; iKF < nKFs; ++iKF) 
   {
@@ -595,6 +596,7 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
   iX2d.resize(0);
   const float eps = FLT_EPSILON;
   const float epsd = UT::Inverse(BA_VARIANCE_MAX_DEPTH, BA_WEIGHT_FEATURE, eps);
+
   for (int iKF = 0; iKF < nKFs; ++iKF) {
     if (!(m_ucs[iKF] & GBA_FLAG_FRAME_UPDATE_TRACK_INFORMATION)) {
       continue;
@@ -620,6 +622,7 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
   m_work.Resize(NmddC + Nd * sizeof(xp128f) / sizeof(float));
   float *mdds = m_work.Data();
   xp128f *_mdds = (xp128f *) (mdds + NmddC);
+
   for (int iKF = 0; iKF < nKFs; ++iKF) {
     const int iX = iKF2X[iKF];
     if (iX == -1) {
@@ -636,6 +639,7 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
       }
     }
   }
+
   //SIMD::Add(Nd, UT::Inverse(BA_VARIANCE_REGULARIZATION_DEPTH, BA_WEIGHT_FEATURE), mdds);
   SIMD::Inverse(Nd, mdds);
   for (int id = 0; id < Nd; ++id) {
@@ -653,6 +657,7 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
     Camera::Factor::Unitary::CC &SMcxx = m_SMcus[iKF];
 
     const bool uc = (m_ucs[iKF] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0;
+
     KeyFrame &KF = m_KFs[iKF];
     const int Nx = static_cast<int>(KF.m_xs.size());
     for (int ix = 0; ix < Nx; ++ix) {
@@ -695,6 +700,7 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
 
     const bool ucz = (m_ucs[iKF] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0;
     const int NZ = static_cast<int>(KF.m_Zs.size());
+
     for (int iZ = 0; iZ < NZ; ++iZ) {
       const FRM::Measurement &Z = KF.m_Zs[iZ];
       const int _iKF = Z.m_iKF, _iX = iKF2X[_iKF];
@@ -822,14 +828,8 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
 bool GlobalBundleAdjustor::SolveSchurComplement() {
 
   const bool scc = SolveSchurComplementPCG();
-
-#ifdef GBA_DEBUG_GROUND_TRUTH_STATE
-  SolveSchurComplementGT(m_Cs, m_CsLM, &m_xsGN);
-#endif
   if (GBA_EMBEDDED_MOTION_ITERATION) {
-
     EmbeddedMotionIteration();
-
   }
 
   if (!scc) {
@@ -850,6 +850,7 @@ bool GlobalBundleAdjustor::SolveSchurComplementPCG() {
   const float aba = UT::Inverse(BA_VARIANCE_REGULARIZATION_BIAS_ACCELERATION, BA_WEIGHT_FEATURE);
   const float abw = UT::Inverse(BA_VARIANCE_REGULARIZATION_BIAS_GYROSCOPE, BA_WEIGHT_FEATURE);
   float *b = m_bs.Data();
+
   for (int ic = 0; ic < Nc; ++ic, b += pc) {
     Camera::Factor::Unitary::CC::AmB(m_SAcus[ic], m_SMcus[ic], Acc);
     Acc.m_A.IncreaseDiagonal(ap, ar);
@@ -857,6 +858,7 @@ bool GlobalBundleAdjustor::SolveSchurComplementPCG() {
     Acc.m_b.Get(b);
   }
   m_AmusLM.Resize(Nm);
+
   for (int im = 0; im < Nm; ++im, b += pm) {
     const Camera::Factor::Unitary::MM &Amm = m_SAcmsLM[im].m_Au.m_Amm;
     m_AmusLM[im].Set(Amm.m_A);
@@ -866,6 +868,7 @@ bool GlobalBundleAdjustor::SolveSchurComplementPCG() {
   const int NKp = CountSchurComplementsOffDiagonal();
   m_Acbs.Resize(NKp);
   m_Acbs.MakeZero();
+
   for (int ic = 0, im = Nm - Nc, iKp = 0; ic < Nc; ++ic, ++im) {
     LA::AlignedMatrix6x6f *Acbs = m_Acbs.Data() + m_iKF2cb[ic];
     const KeyFrame &KF = m_KFs[ic];
@@ -884,12 +887,6 @@ bool GlobalBundleAdjustor::SolveSchurComplementPCG() {
     //if (im >= 1 && !(m_ucmsLM[im] & GBA_FLAG_CAMERA_MOTION_INVALID) &&
     //               !(m_ucmsLM[im - 1] & GBA_FLAG_CAMERA_MOTION_INVALID)) {
     if (im >= 1 && !KF.m_us.Empty()) {
-#ifdef CFG_DEBUG
-      //UT_ASSERT(KF.m_iKFsMatch.back() == ic - 1);
-      UT_ASSERT(KF.m_iKFsMatch[KF.m_Zm.m_SMczms.Size() - 1] == ic - 1);
-      UT_ASSERT(!(m_ucmsLM[im] & GBA_FLAG_CAMERA_MOTION_INVALID) &&
-                !(m_ucmsLM[im - 1] & GBA_FLAG_CAMERA_MOTION_INVALID));
-#endif
       Acbs[Nk - 1] += m_SAcmsLM[im].m_Ab.m_Acc;
     }
   }
@@ -906,20 +903,16 @@ bool GlobalBundleAdjustor::SolveSchurComplementPCG() {
   m_drs.Resize(N);
   m_dxs.Resize(N);
 
-
   bool scc = true;
   PCG_TYPE Se2, Se2Pre, e2Max, alpha, beta, F, FMin;
   PCG_TYPE Se2Min, e2MaxMin;
   m_rs = m_bs;
-  //m_rs.Swap(m_bs);
+
 #ifdef CFG_INCREMENTAL_PCG
   m_xsGN.Resize(0);
   m_xsGN.Push((float *) m_xcs.Data(), Ncp);
   m_xsGN.Push((float *) m_xmsLM.Data(), Nmp);
   m_xsGN.MakeMinus();
-  //UT::DebugStart();
-  //m_xsGN.MakeZero();
-  //UT::DebugStop();
   m_xs = m_xsGN;
   ApplyA(m_xs, &m_drs);
   m_rs -= m_drs;
@@ -947,47 +940,12 @@ bool GlobalBundleAdjustor::SolveSchurComplementPCG() {
     Se2Min = Se2;
     e2MaxMin = e2Max;
     //////////////////////////////////////////////////////////////////////////
-#ifdef CFG_VERBOSE
-#ifdef GBA_DEBUG_PCG_SAVE_RESIDUAL
-    const std::string fileName = "D:/tmp/pcg.txt";
-    FILE *fp = fopen(fileName.c_str(), "w");
-    SolveSchurComplementGT(m_Cs, m_CsLM, &m_xsGT);
-#endif
-    if (m_verbose >= 3) {
-      m_dxs = m_bs;
-      m_dxs += m_rs;
-      F = FMin = m_dxs.Dot(m_xs) * -0.5f;
-      UT::PrintSeparator();
-      UT::Print("*%2d: [GlobalBundleAdjustor::SolveSchurComplement]\n", m_iIter);
-      UT::Print("  *%2d: F = %e, rTz = %e, a = %f\n", 0, F, Se2/* / s*/, alpha/* * s*/);
-#ifdef GBA_DEBUG_PCG_SAVE_RESIDUAL
-      const Residual R = ComputeResidual(m_xs, true);
-      LA::AlignedVectorXf::ApB(m_xsGT, m_xs, m_dxs);
-      ConvertCameraUpdates(m_dxs.Data(), &m_xp2s, &m_xr2s);
-      ConvertMotionUpdates(m_dxs.Data() + Ncp, &m_xv2s, &m_xba2s, &m_xbw2s);
-      const PCG_TYPE ep = sqrtf(m_xp2s.Mean());
-      const PCG_TYPE er = sqrtf(m_xr2s.Mean()) * UT_FACTOR_RAD_TO_DEG;
-      const PCG_TYPE ev = sqrtf(m_xv2s.Mean());
-      const PCG_TYPE eba = sqrtf(m_xba2s.Mean());
-      const PCG_TYPE ebw = sqrtf(m_xbw2s.Mean()) * UT_FACTOR_RAD_TO_DEG;
-      fprintf(fp, "%e %e %e %e %e %e %e %e\n", R.m_r2, R.m_F, Se2 / s, ep, er, ev, eba, ebw);
-#endif
-    }
-#endif
+
     m_drs *= alpha;
     m_rs -= m_drs;
 #ifdef CFG_INCREMENTAL_PCG
     m_ps.GetScaled(alpha, m_dxs);
     m_xs += m_dxs;
-#if defined GBA_DEBUG_PCG_SAVE_RESULT || defined GBA_DEBUG_PCG_LOAD_RESULT
-    const std::string xFileName = "D:/tmp/pcg/x0000.txt";
-#endif
-#ifdef GBA_DEBUG_PCG_SAVE_RESULT
-    m_xs.SaveB(xFileName);
-#endif
-#ifdef GBA_DEBUG_PCG_LOAD_RESULT
-    m_xs.LoadB(xFileName);
-#endif
 #else
     m_ps.GetScaled(alpha, m_xs);
 #endif
@@ -1004,9 +962,7 @@ bool GlobalBundleAdjustor::SolveSchurComplementPCG() {
       ApplyM(m_rs, &m_zs);
       Se2Pre = Se2;
       ConvertCameraMotionResiduals(m_rs, m_zs, &Se2, &e2Max);
-#ifdef CFG_DEBUG
-      UT_ASSERT(Se2 >= 0 && e2Max >= 0);
-#endif
+
       //////////////////////////////////////////////////////////////////////////
       if (Se2 < Se2Min) {
         Se2Min = Se2;
@@ -1043,19 +999,7 @@ bool GlobalBundleAdjustor::SolveSchurComplementPCG() {
       m_rs -= m_drs;
       m_ps.GetScaled(alpha, m_dxs);
       m_xs += m_dxs;
-
-#ifdef GBA_DEBUG_PCG_SAVE_RESULT
-      m_xs.SaveB(UT::FileNameIncreaseSuffix(xFileName, m_iIterPCG + 1));
-#endif
-#ifdef GBA_DEBUG_PCG_LOAD_RESULT
-      m_xs.LoadB(UT::FileNameIncreaseSuffix(xFileName, m_iIterPCG + 1));
-#endif
-
     }
-#ifdef GBA_DEBUG_PCG_SAVE_RESIDUAL
-    fclose(fp);
-    UT::PrintSaved(fileName);
-#endif
   } else {
     m_iIterPCG = 0;
   }
@@ -1067,79 +1011,7 @@ bool GlobalBundleAdjustor::SolveSchurComplementPCG() {
   return scc;
 }
 
-void GlobalBundleAdjustor::SolveSchurComplementGT(const AlignedVector<Rigid3D> &Cs,
-                                                  const AlignedVector<Camera> &CsLM,
-                                                  LA::AlignedVectorXf *xs, const bool motion) {
-  if (!m_CsGT) {
-    return;
-  }
-#ifdef GBA_DEBUG_GROUND_TRUTH_STATE_ERROR
-  const float dpMax = 0.01f;
-  const float drMax = 0.1f;
-  const float dvMax = 0.1f;
-  const float dbaMax = 0.1f;
-  const float dbwMax = 0.1f;
-#endif
-  const int pc = 6, pm = 9;
-  const int Nc = m_Cs.Size(), Nm = motion ? m_CsLM.Size() : 0;
-  xs->Resize(Nc * pc + Nm * pm);
-  Rotation3D dR;
-  Point3D p, pGT;
-  LA::AlignedVector3f dr, dp;
-  LA::Vector6f *xcs = (LA::Vector6f *) xs->Data();
-  for (int ic = 0; ic < Nc; ++ic) {
-    const Rigid3D &C = Cs[ic], &CGT = m_CsKFGT[ic];
-    Rotation3D::ATB(C, CGT, dR);
-    dR.GetRodrigues(dr, BA_ANGLE_EPSILON);
-    C.GetPosition(p);
-    CGT.GetPosition(pGT);
-    LA::AlignedVector3f::amb(pGT, p, dp);
-#ifdef GBA_DEBUG_GROUND_TRUTH_STATE_ERROR
-    dp += LA::AlignedVector3f::GetRandom(dpMax);
-    dr += LA::AlignedVector3f::GetRandom(drMax * UT_FACTOR_DEG_TO_RAD);
-#ifdef CFG_DEBUG
-    dr.z() = 0.0f;
-#endif
-#endif
-    xcs[ic].Set(dp, dr);
-  }
-  ConvertCameraUpdates(xs->Data(), &m_xp2s, &m_xr2s);
-  if (motion) {
-    LA::AlignedVector3f dv, dba, dbw;
-    LA::Vector9f *xms = (LA::Vector9f *) (xcs + Nc);
-    for (int im = 0; im < Nm; ++im) {
-      const Camera &C = CsLM[im], &CGT = m_CsLMGT[im];
-      LA::Vector9f &xm = xms[im];
-      if (CGT.m_v.Valid()) {
-        LA::AlignedVector3f::amb(CGT.m_v, C.m_v, dv);
-#ifdef GBA_DEBUG_GROUND_TRUTH_STATE_ERROR
-        dv += LA::AlignedVector3f::GetRandom(dvMax);
-#endif
-        xm.Set012(dv);
-      }
-      if (CGT.m_ba.Valid()) {
-        LA::AlignedVector3f::amb(CGT.m_ba, C.m_ba, dba);
-#ifdef GBA_DEBUG_GROUND_TRUTH_STATE_ERROR
-        dba += LA::AlignedVector3f::GetRandom(dbaMax);
-#endif
-        xm.Set345(dba);
-      }
-      if (CGT.m_bw.Valid()) {
-        LA::AlignedVector3f::amb(CGT.m_bw, C.m_bw, dbw);
-#ifdef GBA_DEBUG_GROUND_TRUTH_STATE_ERROR
-        dbw += LA::AlignedVector3f::GetRandom(dbwMax * UT_FACTOR_DEG_TO_RAD);
-#endif
-        xm.Set678(dbw);
-      }
-    }
-  }
-}
 
-#ifdef GBA_DEBUG_EIGEN_PCG
-static EigenMatrixXd g_A/*, g_S, g_SI*/, g_M, g_L, g_D, g_LT;
-static EigenVectorXd g_z1, g_z2, g_r;
-static std::vector<EigenMatrixXd> g_Ms;
-#endif
 
 void GlobalBundleAdjustor::PrepareConditioner() {
   const int pc = 6, pm = 9;
@@ -1222,58 +1094,6 @@ void GlobalBundleAdjustor::PrepareConditioner() {
       Amcs[ib].MakeZero();
     }
   }
-#ifdef GBA_DEBUG_EIGEN_PCG
-  const double e_epsc[pc] = {epsp, epsp, epsp, epsr, epsr, epsr};
-  const double e_epsm[pm] = {epsv, epsv, epsv, epsba, epsba, epsba, epsbw, epsbw, epsbw};
-  const int pcm = pc + pm, N = Nc * (pc + pm);
-  g_A.resize(N, N);
-  g_A.setZero();
-  for (int ic = 0, icp = 0; ic < Nc; ++ic, icp += pcm) {
-    g_A.block<pc, pc>(icp, icp) = EigenMatrix6x6f(m_Acus[ic]).cast<double>();
-    const KeyFrame &KF = m_KFs[ic];
-    const LA::AlignedMatrix6x6f *Acbs = m_Acbs.Data() + KF.m_iKp;
-    const int Nkp = int(KF.m_ikp2KF.size());
-    for (int ikp = 0; ikp < Nkp; ++ikp) {
-      const int _ic = KF.m_ikp2KF[ikp];
-      if (ic < _ic + Nb) {
-        g_A.block<pc, pc>(_ic * pcm, icp) = EigenMatrix6x6f(Acbs[ikp]).cast<double>();
-      }
-    }
-  }
-  for (int ic = Nc - Nm, icp = ic * pcm, im = 0, imp = icp + pc; ic < Nc;
-       ++ic, icp += pcm, ++im, imp += pcm) {
-    const Camera::EigenFactor e_Acm = m_SAcmsLM[im];
-    g_A.block<pm, pm>(imp, imp) = EigenMatrix9x9f(m_AmusLM[im]).cast<double>();
-    g_A.block<pc, pm>(icp, imp) = e_Acm.m_Au.m_Acm.cast<double>();
-    if (im > 0) {
-      const int _icp = icp - pcm, _imp = imp - pcm;
-      g_A.block<pc, pm>(_icp, imp) = e_Acm.m_Ab.m_Acm.cast<double>();
-      g_A.block<pm, pc>(_imp, icp) = e_Acm.m_Ab.m_Amc.cast<double>();
-      g_A.block<pm, pm>(_imp, imp) = e_Acm.m_Ab.m_Amm.cast<double>();
-    }
-  }
-  g_A.SetLowerFromUpper();
-  g_M = g_A;
-  //g_S.Resize(N, N);   g_S.MakeZero();
-  //g_SI.Resize(N, N);  g_SI.MakeZero();
-  //for (int ic = 0, im = Nm - Nc, icp = 0, imp = pc; ic < Nc; ++ic, ++im, icp += pcm, imp += pcm) {
-  //  const float *sc = scs[ic];
-  //  for (int ip = 0, jcp = icp; ip < pc; ++ip, ++jcp) {
-  //    g_S(jcp, jcp) = sc[ip];
-  //    g_SI(jcp, jcp) = 1 / sc[ip];
-  //  }
-  //  if (im < 0) {
-  //    continue;
-  //  }
-  //  const float *sm = sms[im];
-  //  for (int ip = 0, jmp = imp; ip < pm; ++ip, ++jmp) {
-  //    g_S(jmp, jmp) = sm[ip];
-  //    g_SI(jmp, jmp) = 1 / sm[ip];
-  //  }
-  //}
-  //g_M = EigenMatrixXd(g_S * g_A * g_S);
-  g_Ms.resize(0);
-#endif
 
   AlignedVector<LA::AlignedMatrix6x6f> AccsT;
   AlignedVector<LA::AlignedMatrix9x6f> AcmsTLM;
@@ -1297,30 +1117,7 @@ void GlobalBundleAdjustor::PrepareConditioner() {
     const int Nbcm = im >= 0 ? (ic + 1 == Nc ? 1 : 2) : 0;
     const int Nbmc = im >= 0 ? Nbcc - 1 : 0;
     const int Nbmm = Nbcm;
-#ifdef GBA_DEBUG_EIGEN_PCG
-//#if 0
-    const int icp = ic * pcm, imp = icp + pc;
-    g_M.Marginalize(icp, pc, e_epsc, false, false);
-//#ifdef CFG_DEBUG
-#if 0
-    const EigenMatrixXd e_Aii = EigenMatrixXd(g_M.block<pm, pm>(imp, imp));
-    const EigenMatrixXd e_Mii = e_Aii.GetInverseLDL(e_epsm);
-    const int imChk = 4;
-    //if (im == imChk) {
-    //  UT::PrintSeparator();
-    //  EigenMatrix9x9f(e_Aii.cast<float>()).Print(true);
-    //}
-#endif
-    g_M.Marginalize(imp, pm, e_epsm, false, false);
-    g_Ms.push_back(g_M);
-//#ifdef CFG_DEBUG
-#if 0
-    if (UT::Debugging()) {
-      UT::PrintSeparator();
-      EigenMatrix9x9f(g_M.block<pm, pm>(imp, imp).cast<float>()).Print(true);
-    }
-#endif
-#endif
+
     LA::AlignedMatrix6x6f &Mcc = Mccs[0];
     if (Mcc.InverseLDL(epsc)) {
       MccsT[0] = Mcc;
@@ -1340,9 +1137,7 @@ void GlobalBundleAdjustor::PrepareConditioner() {
         const int _ic = ic + ib;
         LA::AlignedMatrix6x6f *_Mccs = m_Mcc[_ic] - ib;
         LA::AlignedMatrix6x6f::AddABTToUpper(MccT, AccsT[ib], _Mccs[ib]);
-#ifdef GBA_DEBUG_EIGEN_PCG
-        _Mccs[ib].SetLowerFromUpper();
-#endif
+
         for (int jb = ib + 1; jb < Nbcc; ++jb) {
           LA::AlignedMatrix6x6f::AddABTTo(MccT, AccsT[jb], _Mccs[jb]);
         }
@@ -1359,25 +1154,8 @@ void GlobalBundleAdjustor::PrepareConditioner() {
           LA::AlignedMatrix9x6f::AddABTTo(McmT, _AccsT[jb], _MmcsLM[jb]);
         }
         LA::AlignedMatrix9x9f *_MmmsLM = m_MmmLM[_im];
-//#ifdef CFG_DEBUG
-#if 0
-        if (im == imChk && _im == imChk) {
-          LA::AlignedMatrix9x9f T;
-          LA::AlignedMatrix9x9f::ABT(McmT, AcmsTLM[ib], T);
-          UT::Print("%e + %e = %f\n", _MmmsLM[0][0][3], T[0][3], _MmmsLM[0][0][3] + T[0][3]);
-        }
-#endif
+
         LA::AlignedMatrix9x9f::AddABTToUpper(McmT, AcmsTLM[ib], _MmmsLM[0]);
-#ifdef GBA_DEBUG_EIGEN_PCG
-        _MmmsLM[0].SetLowerFromUpper();
-#endif
-//#ifdef CFG_DEBUG
-#if 0
-        if (im == imChk && _im == imChk) {
-          UT::PrintSeparator();
-          _MmmsLM[0].Print(true);
-        }
-#endif
         if (ib == 0 && Nbcm == 2) {
           LA::AlignedMatrix9x9f::AddABTTo(McmT, AcmsTLM[1], _MmmsLM[1]);
         }
@@ -1396,31 +1174,11 @@ void GlobalBundleAdjustor::PrepareConditioner() {
       continue;
     }
     LA::AlignedMatrix9x9f &Mmm = MmmsLM[0];
-//#ifdef CFG_DEBUG
-#if 0
-    if (im == imChk) {
-      /*const */LA::AlignedMatrix9x9f Aii = Mmm;
-      //EigenMatrix9x9f(e_Aii.cast<float>()).AssertEqual(Aii, 2, "", -1.0f, -1.0f);
-      EigenMatrix9x9f(e_Aii.cast<float>()).Get(Aii);
-      const LA::AlignedMatrix9x9f Mii = Aii.GetInverseLDL(epsm);
-      //EigenMatrix9x9f(e_Mii.cast<float>()).AssertEqual(Mii, 2, "", -1.0f, -1.0f);
-      UT::PrintSeparator();
-      EigenMatrix9x9f((e_Aii * e_Mii).cast<float>()).Print(true);
-      UT::PrintSeparator();
-      EigenMatrix9x9f(EigenMatrix9x9f(Aii) * EigenMatrix9x9f(Mii)).Print(true);
-    }
-#endif
+
     if (Mmm.InverseLDL(epsm)) {
       MmmsTLM[0] = Mmm;
       Mmm.MakeMinus();
-//#ifdef CFG_DEBUG
-#if 0
-      if (UT::Debugging()) {
-        UT::PrintSeparator();
-        Mmm.Print(true);
-        UT::DebugStop();
-      }
-#endif
+
       for (int ib = 0; ib < Nbmc; ++ib) {
         MmcsLM[ib].GetTranspose(AmcsTLM[ib]);
         LA::AlignedMatrix9x9f::ABT(Mmm, AmcsTLM[ib], MmcsLM[ib]);
@@ -1436,9 +1194,7 @@ void GlobalBundleAdjustor::PrepareConditioner() {
         const int _ic = ic + ib + 1;
         LA::AlignedMatrix6x6f *_Mccs = m_Mcc[_ic] - ib;
         LA::AlignedMatrix6x9f::AddABTToUpper(MmcT, AmcsTLM[ib], _Mccs[ib]);
-#ifdef GBA_DEBUG_EIGEN_PCG
-        _Mccs[ib].SetLowerFromUpper();
-#endif
+
         for (int jb = ib + 1; jb < Nbmc; ++jb) {
           LA::AlignedMatrix6x9f::AddABTTo(MmcT, AmcsTLM[jb], _Mccs[jb]);
         }
@@ -1453,18 +1209,7 @@ void GlobalBundleAdjustor::PrepareConditioner() {
         for (int jb = 1; jb < Nbmc; ++jb) {
           LA::AlignedMatrix9x9f::AddABTTo(MmmT, AmcsTLM[jb], _Mmcs[jb]);
         }
-#if 0
-        if (UT::Debugging()) {
-          LA::AlignedMatrix9x9f T;
-          LA::AlignedMatrix9x9f::ABT(MmmT, AmmsTLM[1], T);
-          UT::Print("%f + %f = %f\n", m_MmmLM[_im][0][0][3], T[0][3], m_MmmLM[_im][0][0][3] + T[0][3]);
-          UT::DebugStop();
-        }
-#endif
         LA::AlignedMatrix9x9f::AddABTToUpper(MmmT, AmmsTLM[1], m_MmmLM[_im][0]);
-#ifdef GBA_DEBUG_EIGEN_PCG
-        m_MmmLM[_im][0].SetLowerFromUpper();
-#endif
       }
     } else {
       for (int ib = 0; ib < Nbmc; ++ib) {
@@ -1476,133 +1221,7 @@ void GlobalBundleAdjustor::PrepareConditioner() {
         MmmsTLM[ib].MakeZero();
       }
     }
-#ifdef GBA_DEBUG_EIGEN_PCG
-//#if 0
-    for (int ic1 = ic, im1 = im, icp1 = icp, imp1 = imp; ic1 < Nc;
-         ++ic1, ++im1, icp1 += pcm, imp1 += pcm) {
-      const int Nbcc1 = ic1 + Nb > Nc ? Nc - ic1 : Nb;
-      const int Nbcm1 = im1 >= 0 ? (ic1 + 1 == Nc ? 1 : 2) : 0;
-      const int Nbmc1 = im1 >= 0 ? Nbcc1 - 1 : 0;
-      const int Nbmm1 = Nbcm1;
-      for (int ib = 0, ic2 = ic1, icp2 = icp1; ib < Nbcc1; ++ib, ++ic2, icp2 += pcm) {
-        const EigenMatrix6x6f e_Mcc = g_M.block<pc, pc>(icp1, icp2).cast<float>();
-        //e_Mcc.AssertEqual(m_Mcc[ic1][ib], 1, UT::String("Mcc[%d][%d]", ic1, ic2));
-        //g_M.block<pc, pc>(icp1, icp2) = EigenMatrix6x6f(m_Mcc[ic1][ib]).cast<double>();
-        e_Mcc.Get(m_Mcc[ic1][ib]);
-      }
-      if (im1 >= 0) {
-        for (int ib = 0, im2 = im1, imp2 = imp1; ib < Nbcm1; ++ib, ++im2, imp2 += pcm) {
-          const EigenMatrix6x9f e_Mcm = g_M.block<pc, pm>(icp1, imp2).cast<float>();
-          //e_Mcm.AssertEqual(m_McmLM[ic1][ib], 1, UT::String("Mcm[%d][%d]", ic1, im2));
-          //g_M.block<pc, pm>(icp1, imp2) = EigenMatrix6x9f(m_McmLM[ic1][ib]).cast<double>();
-          e_Mcm.Get(m_McmLM[ic1][ib]);
-        }
-        for (int ib = 0, ic2 = ic1 + 1, icp2 = icp1 + pcm; ib < Nbmc1; ++ib, ++ic2, icp2 += pcm) {
-          const EigenMatrix9x6f e_Mmc = g_M.block<pm, pc>(imp1, icp2).cast<float>();
-          //e_Mmc.AssertEqual(m_MmcLM[im1][ib], 1, UT::String("Mmc[%d][%d]", im1, ic2));
-          //g_M.block<pm, pc>(imp1, icp2) = EigenMatrix9x6f(m_MmcLM[im1][ib]).cast<double>();
-          e_Mmc.Get(m_MmcLM[im1][ib]);
-        }
-        for (int ib = 0, im2 = im1, imp2 = imp1; ib < Nbmm1; ++ib, ++im2, imp2 += pcm) {
-          const EigenMatrix9x9f e_Mmm = g_M.block<pm, pm>(imp1, imp2).cast<float>();
-          //e_Mmm.AssertEqual(m_MmmLM[im1][ib], 1, UT::String("Mmm[%d][%d]", im1, im2));
-          //g_M.block<pm, pm>(imp1, imp2) = EigenMatrix9x9f(m_MmmLM[im1][ib]).cast<double>();
-          e_Mmm.Get(m_MmmLM[im1][ib]);
-        }
-      }
-    }
-#endif
   }
-#ifdef GBA_DEBUG_EIGEN_PCG
-  g_M.SetLowerFromUpper();
-  g_D.Resize(N, N);
-  g_D.MakeZero();
-  g_LT.Resize(N, N);
-  g_LT.MakeZero();
-  for (int ic = 0, icp = 0, imp = pc; ic < Nc; ++ic, icp += pcm, imp += pcm) {
-    g_D.block<pc, pc>(icp, icp) = -g_M.block<pc, pc>(icp, icp).inverse();
-    g_D.block<pm, pm>(imp, imp) = -g_M.block<pm, pm>(imp, imp).inverse();
-    for (int ip = 0; ip < pc; ++ip) {
-      g_LT(icp + ip, icp + ip) = -1.0f;
-    }
-    const int jcp = icp + pc;
-    g_LT.block(icp, jcp, pc, N - jcp) = g_M.block(icp, jcp, pc, N - jcp);
-    for (int ip = 0; ip < pm; ++ip) {
-      g_LT(imp + ip, imp + ip) = -1.0f;
-    }
-    const int jmp = imp + pm;
-    g_LT.block(imp, jmp, pm, N - jmp) = g_M.block(imp, jmp, pm, N - jmp);
-  }
-  g_L = EigenMatrixXd(g_LT.transpose());
-  //const EigenMatrixXd e_A1 = EigenMatrixXd(g_S * g_A * g_S);
-  const EigenMatrixXd &e_A1 = g_A;
-  const EigenMatrixXd e_A2 = EigenMatrixXd(g_L * g_D * g_LT);
-  for (int ic = 0, icp = 0; ic < Nc; ++ic, icp += pcm) {
-    for (int jc = 0, jcp = 0; jc < Nc; ++jc, jcp += pcm) {
-      const std::string str = UT::String("A[%d][%d]", ic, jc);
-      const EigenMatrix15x15f e_A1ij(e_A1.block<pcm, pcm>(icp, jcp).cast<float>());
-      const EigenMatrix15x15f e_A2ij(e_A2.block<pcm, pcm>(icp, jcp).cast<float>());
-      e_A1ij.AssertEqual(e_A2ij, 1, str);
-    }
-  }
-
-  EigenMatrix15x15f e_I;
-  e_I.setIdentity();
-  const EigenMatrixXd e_AI = EigenMatrixXd(g_A.inverse());
-  const EigenMatrixXd e_I1 = EigenMatrixXd(g_A * e_AI), e_I2 = EigenMatrixXd(e_AI * g_A);
-  for (int ic = 0, icp = 0; ic < Nc; ++ic, icp += pcm) {
-    for (int jc = 0, jcp = 0; jc < Nc; ++jc, jcp += pcm) {
-      const std::string str1 = UT::String("I1[%d][%d]", ic, jc);
-      const std::string str2 = UT::String("I2[%d][%d]", ic, jc);
-      if (ic == jc) {
-        EigenMatrix15x15f(e_I1.block<pcm, pcm>(icp, jcp).cast<float>()).AssertEqual(e_I, 1, str1);
-        EigenMatrix15x15f(e_I2.block<pcm, pcm>(icp, jcp).cast<float>()).AssertEqual(e_I, 1, str2);
-      } else {
-        EigenMatrix15x15f(e_I1.block<pcm, pcm>(icp, jcp).cast<float>()).AssertZero(1, str1);
-        EigenMatrix15x15f(e_I2.block<pcm, pcm>(icp, jcp).cast<float>()).AssertZero(1, str2);
-      }
-    }
-  }
-  const float rMax = 1.0f;
-  m_rs.Resize(N);
-  m_rs.Random(rMax);
-  EigenVectorXd e_r;
-  e_r.Resize(N);
-  const LA::Vector6f *rcs = (LA::Vector6f *) m_rs.Data();
-  const LA::Vector9f *rms = (LA::Vector9f *) (rcs + Nc);
-  for (int ic = 0, im = Nm - Nc, icp = 0, imp = pc; ic < Nc; ++ic, ++im, icp += pcm, imp += pcm) {
-    e_r.block<pc, 1>(icp, 0) = EigenVector6f(rcs[ic]).cast<double>();
-    if (im >= 0) {
-      e_r.block<pm, 1>(imp, 0) = EigenVector9f(rms[im]).cast<double>();
-    } else {
-      e_r.block<pm, 1>(imp, 0).setZero();
-    }
-  }
-  //g_z1 = EigenVectorXd(e_AI * e_r);
-  g_z1 = EigenVectorXd(g_A.ldlt().solve(e_r));
-  g_z2.Resize(N);
-  ApplyM(m_rs, &m_zs);
-  const LA::Vector6f *zcs = (LA::Vector6f *) m_zs.Data();
-  const LA::Vector9f *zms = (LA::Vector9f *) (zcs + Nc);
-  for (int ic = 0, im = Nm - Nc, icp = 0, imp = pc; ic < Nc; ++ic, ++im, icp += pcm, imp += pcm) {
-    const EigenVector6f e_zc1 = EigenVector6f(g_z1.block<pc, 1>(icp, 0).cast<float>());
-    const EigenVector6f e_zc2 = EigenVector6f(zcs[ic]);
-    e_zc1.AssertEqual(e_zc2, 1, UT::String("zc[%d]", ic));
-    const EigenVector9f e_zm1 = EigenVector9f(g_z1.block<pm, 1>(imp, 0).cast<float>());
-    EigenVector9f e_zm2;
-    if (im >= 0) {
-      e_zm2 = EigenVector9f(zms[im]);
-      e_zm1.AssertEqual(e_zm2, 1, UT::String("zm[%d]", im));
-    } else {
-      e_zm2.setZero();
-    }
-    g_z2.block<pc, 1>(icp, 0) = e_zc2.cast<double>();
-    g_z2.block<pm, 1>(imp, 0) = e_zm2.cast<double>();
-  }
-  const EigenVectorXd e_Az1 = EigenVectorXd(g_A * g_z1), e_e1 = EigenVectorXd(e_Az1 - e_r);
-  const EigenVectorXd e_Az2 = EigenVectorXd(g_A * g_z2), e_e2 = EigenVectorXd(e_Az2 - e_r);
-  UT::Print("%e vs %e\n", e_e1.norm(), e_e2.norm());
-#endif
 }
 
 void GlobalBundleAdjustor::ApplyM(const LA::AlignedVectorX<PCG_TYPE> &xs,
@@ -1648,22 +1267,7 @@ void GlobalBundleAdjustor::ApplyM(const LA::AlignedVectorX<PCG_TYPE> &xs,
   //xs.GetScaled(m_ss, *Mxs);
   LA::Vector6f *bcs = (LA::Vector6f *) Mxs->Data();
   LA::Vector9f *bmsLM = (LA::Vector9f *) (bcs + Nc);
-#ifdef GBA_DEBUG_EIGEN_PCG
-  const int pc = 6, pm = 9;
-  const int pcm = pc + pm;
-  const int N = Nc * pcm;
-  EigenVectorXd e_b;
-  e_b.Resize(N);
-  e_b.MakeZero();
-  for (int ic = 0, im = Nm - Nc, icp = 0, imp = pc; ic < Nc; ++ic, ++im, icp += pcm, imp += pcm) {
-    e_b.block<pc, 1>(icp, 0) = EigenVector6f(bcs[ic]).cast<double>();
-    if (im >= 0) {
-      e_b.block<pm, 1>(imp, 0) = EigenVector9f(bmsLM[im]).cast<double>();
-    }
-  }
-  //const EigenVectorXd e_z = EigenVectorXd(g_SI * g_z1);
-  const EigenVectorXd &e_z = g_z1;
-#endif
+
   for (int ic = 0, im = Nm - Nc; ic < Nc; ++ic, ++im) {
     const int Nbcc = ic + Nb > Nc ? Nc - ic : Nb;
     const int Nbcm = im >= 0 ? (ic + 1 == Nc ? 1 : 2) : 0;
@@ -1695,42 +1299,6 @@ void GlobalBundleAdjustor::ApplyM(const LA::AlignedVectorX<PCG_TYPE> &xs,
       }
       LA::AlignedMatrix9x9f::Ab<float>(MmmsTLM[0], bm, bmsLM[im]);
     }
-
-#ifdef GBA_DEBUG_EIGEN_PCG
-    const int icp = ic * pcm, imp = icp + pc;
-    const EigenVector6f e_bci = EigenVector6f(e_b.block<pc, 1>(icp, 0).cast<float>());
-    e_b.block<pm, 1>(imp, 0) += g_M.block<pm, pc>(imp, icp) * e_bci.cast<double>();
-    for (int _ic = ic + 1, _icp = icp + pcm; _ic < Nc; ++_ic, _icp += pcm) {
-      e_b.block<pcm, 1>(_icp, 0) += g_M.block<pcm, pc>(_icp, icp) * e_bci.cast<double>();
-    }
-    e_b.block<pc, 1>(icp, 0) = -g_M.block<pc, pc>(icp, icp) * e_bci.cast<double>();
-    const EigenVector9f e_bmi = EigenVector9f(e_b.block<pm, 1>(imp, 0).cast<float>());
-    for (int _ic = ic + 1, _icp = icp + pcm; _ic < Nc; ++_ic, _icp += pcm) {
-      e_b.block<pcm, 1>(_icp, 0) += g_M.block<pcm, pm>(_icp, imp) * e_bmi.cast<double>();
-    }
-    e_b.block<pm, 1>(imp, 0) = -g_M.block<pm, pm>(imp, imp) * e_bmi.cast<double>();
-    for (int _ic = ic, _im = im, _icp = ic * pcm, _imp = _icp + pc; _ic < Nc;
-         ++_ic, ++_im, _icp += pcm, _imp += pcm) {
-      const EigenVector6f e_bci = EigenVector6f(e_b.block<pc, 1>(_icp, 0).cast<float>());
-      e_bci.AssertEqual(bcs[_ic], 1, UT::String("bc[%d][%d]", ic, _ic));
-      e_b.block<pc, 1>(_icp, 0) = EigenVector6f(bcs[_ic]).cast<double>();
-      //bcs[_ic] = e_bci.GetVector6f();
-      if (_im >= 0) {
-        const EigenVector9f e_bmi = EigenVector9f(e_b.block<pm, 1>(_imp, 0).cast<float>());
-        e_bmi.AssertEqual(bmsLM[_im], 1, UT::String("bm[%d][%d]", im, _im));
-        e_b.block<pm, 1>(_imp, 0) = EigenVector9f(bmsLM[_im]).cast<double>();
-        //bmsLM[_im] = e_bmi.GetVector9f();
-      }
-    }
-    const int i = icp + pcm, _N = N - i;
-    const EigenMatrixXd e_Ai = EigenMatrixXd(g_Ms[ic].block(i, i, _N, _N));
-    const EigenVectorXd e_bi = EigenVectorXd(e_b.block(i, 0, _N, 1));
-    const EigenVectorXd e_xi = EigenVectorXd(e_z.block(i, 0, _N, 1));
-    const EigenVectorXd e_Axi = EigenVectorXd(e_Ai * e_xi);
-    const EigenVectorXd e_ei = EigenVectorXd(e_Axi - e_bi);
-    const double e2 = e_ei.norm();
-    UT::Print("%d %e\n", ic, e2);
-#endif
   }
   m_bcs.Resize(Nc);
   m_bmsLM.Resize(Nm);
@@ -1762,28 +1330,7 @@ void GlobalBundleAdjustor::ApplyM(const LA::AlignedVectorX<PCG_TYPE> &xs,
       LA::AlignedMatrix6x9f::AddAbTo(McmsLM[ib], m_bmsLM[im + ib], _bc);
     }
     m_bcs[ic].Set(_bc);
-    
-#ifdef GBA_DEBUG_EIGEN_PCG
-    const int icp = ic * pcm, imp = icp + pc;
-    for (int _ic = ic + 1, _icp = icp + pcm; _ic < Nc; ++_ic, _icp += pcm) {
-      e_b.block<pm, 1>(imp, 0) += g_M.block<pm, pcm>(imp, _icp) * e_b.block<pcm, 1>(_icp, 0);
-    }
-    e_b.block<pc, 1>(icp, 0) += g_M.block<pc, pm>(icp, imp) * e_b.block<pm, 1>(imp, 0);
-    for (int _ic = ic + 1, _icp = icp + pcm; _ic < Nc; ++_ic, _icp += pcm) {
-      e_b.block<pc, 1>(icp, 0) += g_M.block<pc, pcm>(icp, _icp) * e_b.block<pcm, 1>(_icp, 0);
-    }
-    const EigenVector6f e_bci = EigenVector6f(e_b.block<pc, 1>(icp, 0).cast<float>());
-    e_bci.AssertEqual(bcs[ic], 1, UT::String("bc[%d]", ic));
-    e_b.block<pc, 1>(icp, 0) = EigenVector6f(bcs[ic]).cast<double>();
-    //bcs[ic] = e_bci.GetVector6f();
-    if (im >= 0) {
-      const EigenVector9f e_bmi = EigenVector9f(e_b.block<pm, 1>(imp, 0).cast<float>());
-      e_bmi.AssertEqual(bmsLM[im], 1, UT::String("bm[%d]", im));
-      e_b.block<pm, 1>(imp, 0) = EigenVector9f(bmsLM[im]).cast<double>();
-      //bmsLM[im] = e_bmi.GetVector9f();
-    }
-#endif
-  }
+   }
   //Mxs->Scale(m_ss);
 }
 
@@ -1963,9 +1510,8 @@ void GlobalBundleAdjustor::ApplyAcm(const LA::ProductVector6f *xcs, const LA::Ve
   }
 }
 
-GlobalBundleAdjustor::Residual GlobalBundleAdjustor::ComputeResidual(const
-                                                                     LA::AlignedVectorX<PCG_TYPE> &xs,
-                                                                     const bool minus) {
+GlobalBundleAdjustor::Residual GlobalBundleAdjustor::ComputeResidual(
+  const LA::AlignedVectorX<PCG_TYPE> &xs, const bool minus) {
   Residual R;
   const int N = xs.Size();
   m_work.Resize(N);
@@ -2018,9 +1564,6 @@ void GlobalBundleAdjustor::SolveBackSubstitution() {
     const int NZ = static_cast<int>(KF.m_Zs.size());
     for (int iZ = 0; iZ < NZ; ++iZ) {
       const FRM::Measurement &Z = KF.m_Zs[iZ];
-#ifdef CFG_DEBUG
-      UT_ASSERT(Z.m_iKF < iKF);
-#endif
       if (Z.m_iz1 == Z.m_iz2) {
         continue;
       }
@@ -2075,9 +1618,7 @@ void GlobalBundleAdjustor::SolveBackSubstitution() {
     const int NZ = static_cast<int>(KF.m_Zs.size());
     for (int iZ = 0; iZ < NZ; ++iZ) {
       const FRM::Measurement &Z = KF.m_Zs[iZ];
-#ifdef CFG_DEBUG
-      UT_ASSERT(Z.m_iKF < iKF);
-#endif
+
       const ubyte *_uds = m_uds.data() + m_iKF2d[Z.m_iKF];
       float *_xds = m_xds.Data() + m_iKF2X[Z.m_iKF];
       for (int iz = Z.m_iz1; iz < Z.m_iz2; ++iz) {
@@ -2122,62 +1663,12 @@ void GlobalBundleAdjustor::SolveBackSubstitution() {
       uds[ix] &= ~GBA_FLAG_TRACK_UPDATE_INFORMATION;
     }
   }
-#ifdef GBA_DEBUG_GROUND_TRUTH_STATE
-  if (m_dsGT) {
-    for (int iKF = 0; iKF < nKFs; ++iKF) {
-      const int iX = m_iKF2X[iKF];
-      if (iX == -1) {
-        continue;
-      }
-      float *xds = m_xds.Data() + iX;
-      const int id = m_iKF2d[iKF];
-      const Depth::InverseGaussian *ds = m_ds.data() + id, *dsGT = m_dsGT->data() + id;
-      const int Nx = static_cast<int>(m_KFs[iKF].m_xs.size());
-      for (int ix = 0; ix < Nx; ++ix) {
-        xds[ix] = dsGT[ix].u() - ds[ix].u();
-      }
-    }
-  }
-#endif
+
   PushDepthUpdates(m_xds, &m_xsGN);
   m_x2GN = m_xsGN.SquaredLength();
-//#ifdef CFG_DEBUG
-#if 0
-  const std::string dir = m_dir + "pcg/";
-#ifdef WIN32
-  m_xsGN.AssertEqual(UT::String("%sx%02d.txt", dir.c_str(), m_iIter), 2, "", -1.0f, -1.0f);
-#else
-  m_xsGN.SaveB(UT::String("%sx%02d.txt", dir.c_str(), m_iIter));
-#endif
-#endif
+
 }
 
-void GlobalBundleAdjustor::SolveBackSubstitutionGT(const std::vector<Depth::InverseGaussian> &ds,
-                                                   LA::AlignedVectorXf *xs) {
-  if (!m_dsGT) {
-    return;
-  }
-  const int Nd = static_cast<int>(m_ds.size());
-  LA::AlignedVectorXf dus, dusGT;
-  m_work.Resize(dus.BindSize(Nd) + dusGT.BindSize(Nd));
-  dus.Bind(m_work.Data(), Nd);
-  dusGT.Bind(dus.BindNext(), Nd);
-  const int nKFs = static_cast<int>(m_KFs.size());
-  for (int iKF = 0; iKF < nKFs; ++iKF) {
-    const int id = m_iKF2d[iKF], iX = m_iKF2X[iKF];
-    const Depth::InverseGaussian *_ds = iX == -1 ? m_ds.data() + id : ds.data() + iX;
-    float *_dus = dus.Data() + id;
-    const int Nx = static_cast<int>(m_KFs[iKF].m_xs.size());
-    for (int ix = 0; ix < Nx; ++ix) {
-      _dus[ix] = _ds[ix].u();
-    }
-  }
-  for (int id = 0; id < Nd; ++id) {
-    dusGT[id] = m_dsGT->at(id).u();
-  }
-  dusGT -= dus;
-  xs->Push(dusGT);
-}
 
 bool GlobalBundleAdjustor::EmbeddedMotionIteration() {
   const int pc = 6, pm = 9;
@@ -2315,19 +1806,6 @@ void GlobalBundleAdjustor::EmbeddedPointIteration(const AlignedVector<Rigid3D> &
   memset(Nzs, 0, sizeof(int) * Nd);
   for (int iKF = 0; iKF < nKFs; ++iKF) {
     const KeyFrame &KF = m_KFs[iKF];
-#ifdef CFG_STEREO
-    const int iX = iKF2X[iKF];
-    if (iX != -1) {
-      const int *ix2d = iX2d.data() + iX;
-      const int Nx = static_cast<int>(KF.m_xs.size());
-      for (int ix = 0; ix < Nx; ++ix) {
-        const int id = ix2d[ix];
-        if (id != -1 && KF.m_xs[ix].m_xr.Valid()) {
-          ++Nzs[id];
-        }
-      }
-    }
-#endif
     const int NZ = static_cast<int>(KF.m_Zs.size());
     for (int iZ = 0; iZ < NZ; ++iZ) {
       const FRM::Measurement &Z = KF.m_Zs[iZ];
@@ -2343,16 +1821,7 @@ void GlobalBundleAdjustor::EmbeddedPointIteration(const AlignedVector<Rigid3D> &
         if (id == -1) {
           continue;
         }
-#ifdef CFG_STEREO
-        if (z.m_z.Valid()) {
-          ++Nzs[id];
-        }
-        if (z.m_zr.Valid()) {
-          ++Nzs[id];
-        }
-#else
         ++Nzs[id];
-#endif
         t = true;
       }
       if (t) {
@@ -2360,17 +1829,11 @@ void GlobalBundleAdjustor::EmbeddedPointIteration(const AlignedVector<Rigid3D> &
       }
     }
   }
-#ifdef CFG_STEREO
-  m_t12s.Resize(Nt + Nt);
-#else
+
   m_t12s.Resize(Nt);
-#endif
+
   id2z[0] = 0;
   for (int id = 0, iz = 0; id < Nd; ++id) {
-//#ifdef CFG_DEBUG
-#if 0
-    UT_ASSERT(Nzs[id] > 0);
-#endif
     id2z[id + 1] = id2z[id] + Nzs[id];
   }
   m_zds.resize(id2z[Nd]);
@@ -2381,25 +1844,6 @@ void GlobalBundleAdjustor::EmbeddedPointIteration(const AlignedVector<Rigid3D> &
   memset(Nzs, 0, sizeof(int) * Nd);
   for (int iKF = 0; iKF < nKFs; ++iKF) {
     const KeyFrame &KF = m_KFs[iKF];
-#ifdef CFG_STEREO
-    const int iX = iKF2X[iKF];
-    if (iX != -1) {
-      const int *ix2d = iX2d.data() + iX;
-      const int Nx = static_cast<int>(KF.m_xs.size());
-      for (int ix = 0; ix < Nx; ++ix) {
-        const int id = ix2d[ix];
-        const FTR::Source &x = KF.m_xs[ix];
-        if (id == -1 || x.m_xr.Invalid()) {
-          continue;
-        }
-        Rx.Set(x.m_x.x(), x.m_x.y(), 1.0f);
-        //x.m_Wr.GetScaled(KF.m_Ards[ix].m_wx, W);
-        const LA::SymmetricMatrix2x2f &W = x.m_Wr;
-        const int iz = id2z[id] + Nzs[id]++;
-        m_zds[iz].Set(m_K.m_br, Rx, x.m_xr, W);
-      }
-    }
-#endif
     const Rigid3D &C = Cs[iKF];
     const int NZ = static_cast<int>(KF.m_Zs.size());
     for (int iZ = 0; iZ < NZ; ++iZ) {
@@ -2419,10 +1863,6 @@ void GlobalBundleAdjustor::EmbeddedPointIteration(const AlignedVector<Rigid3D> &
       const Rigid3D T = C / Cs[Z.m_iKF];
       LA::AlignedVector3f *t = m_t12s.Data() + Nt++;
       T.GetTranslation(*t);
-#ifdef CFG_STEREO
-      LA::AlignedVector3f::apb(t[0], m_K.m_br, t[1]);
-      ++Nt;
-#endif
       const KeyFrame &_KF = m_KFs[Z.m_iKF];
       for (int iz = Z.m_iz1; iz < Z.m_iz2; ++iz) {
         const FTR::Measurement &z = KF.m_zs[iz];
@@ -2431,25 +1871,10 @@ void GlobalBundleAdjustor::EmbeddedPointIteration(const AlignedVector<Rigid3D> &
           continue;
         }
         T.ApplyRotation(_KF.m_xs[z.m_ix].m_x, Rx);
-#ifdef CFG_STEREO
-        if (z.m_z.Valid()) {
-          //z.m_W.GetScaled(KF.m_Lzs[iz].m_wx, W);
-          const LA::SymmetricMatrix2x2f &W = z.m_W;
-          const int i = id2z[id] + Nzs[id]++;
-          m_zds[i].Set(t[0], Rx, z.m_z, W);
-        }
-        if (z.m_zr.Valid()) {
-          //z.m_Wr.GetScaled(KF.m_Lzs[iz].m_wxr, W);
-          const LA::SymmetricMatrix2x2f &W = z.m_Wr;
-          const int i = id2z[id] + Nzs[id]++;
-          m_zds[i].Set(t[1], Rx, z.m_zr, W);
-        }
-#else
         //z.m_W.GetScaled(KF.m_Lzs[iz].m_wx, W);
         const LA::SymmetricMatrix2x2f &W = z.m_W;
         const int i = ++Nzs[id];
         m_zds[i].Set(*t, Rx, z.m_z, z.m_W);
-#endif
       }
     }
   }
