@@ -14,27 +14,8 @@
  * limitations under the License.
  *****************************************************************************/
 #include "stdafx.h"
-//#ifndef CFG_DEBUG
-//#define CFG_DEBUG
-//#endif
-#ifdef CFG_DEBUG_EIGEN
-//#define GBA_DEBUG_EIGEN_PCG
-#endif
 #include "GlobalBundleAdjustor.h"
 #include <math.h>  // isfinite
-
-#if defined WIN32 && defined CFG_DEBUG && defined CFG_GROUND_TRUTH
-//#define GBA_DEBUG_GROUND_TRUTH_STATE
-//#ifdef GBA_DEBUG_GROUND_TRUTH_STATE
-//#define GBA_DEBUG_GROUND_TRUTH_STATE_ERROR
-//#endif
-#endif
-
-#if defined CFG_DEBUG && defined CFG_VERBOSE
-//#define GBA_DEBUG_PCG_SAVE_RESIDUAL
-//#define GBA_DEBUG_PCG_SAVE_RESULT
-//#define GBA_DEBUG_PCG_LOAD_RESULT
-#endif
 
 void GlobalBundleAdjustor::UpdateFactors() {
   const float add = UT::Inverse(BA_VARIANCE_REGULARIZATION_DEPTH, BA_WEIGHT_FEATURE);
