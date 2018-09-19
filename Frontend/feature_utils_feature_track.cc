@@ -689,7 +689,9 @@ FeatureTrackDetector::FeatureTrackDetector(const int length_thres,
                                            const int uniform_radius,
                                            const cv::Size& img_size) :
     length_threshold_(length_thres), drop_rate_(drop_rate),
-    use_fast_(use_fast), uniform_radius_(uniform_radius) {
+    use_fast_(use_fast), uniform_radius_(uniform_radius) 
+
+{
   generator_.seed(0);
   distribution_ = std::uniform_real_distribution<float>(0.f, 1.f);
   // Allocated buffer for Optical flow pyramids

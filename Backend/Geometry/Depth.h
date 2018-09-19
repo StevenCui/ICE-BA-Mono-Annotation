@@ -26,9 +26,7 @@
 namespace Depth {
 
 class InverseGaussian {
-
  public:
-
   inline InverseGaussian() {}
   inline InverseGaussian(const float u) : m_u(u), m_s2(DEPTH_VARIANCE_INITIAL) {}
   inline InverseGaussian(const float u, const float s2) : m_u(u), m_s2(s2) {}
@@ -54,7 +52,6 @@ class InverseGaussian {
   }
   static inline bool Valid(const float d) { return d > DEPTH_MIN && d < DEPTH_MAX; }
   inline bool Valid() const { return Valid(u()); }
-  //inline bool Valid() const { return u() > 0.0f; }
   inline bool Invalid() const { return u() == 0.0f; }
   inline void Invalidate() { u() = 0.0f; }
   inline bool Converge() const { return s2() <= DEPTH_VARIANCE_CONVERGE; }
@@ -85,26 +82,16 @@ class InverseGaussian {
   static inline void Project(const Rigid3D &T12, const Point2D &x1, const float d1,
                              LA::Vector2f &x2) {
     const xp128f t = xp128f::get(x1.x(), x1.y(), 1.0f, d1);
-    //const float z12 = SIMD::Sum(_mm_mul_ps(T12.r20_r21_r22_tz(), t));
-    //if (z12 < FLT_EPSILON)
-    //  return false;
-    //const float d12 = 1.0f / z12;
-    const float d12 = 1.0f / (T12.r20_r21_r22_tz() * t).vsum_all();
+     const float d12 = 1.0f / (T12.r20_r21_r22_tz() * t).vsum_all();
     x2.x() = (T12.r00_r01_r02_tx() * t).vsum_all() * d12;
     x2.y() = (T12.r10_r11_r12_ty() * t).vsum_all() * d12;
-    //return true;
   }
   inline void Project(const Rigid3D &T12, const Point2D &x1, LA::Vector2f &x2, float &d2) const {
     const xp128f t = xp128f::get(x1.x(), x1.y(), 1.0f, u());
-    //const float z12 = SIMD::Sum(_mm_mul_ps(T12.r20_r21_r22_tz(), t));
-    //if (z12 < FLT_EPSILON)
-    //  return false;
-    //const float d12 = 1.0f / z12;
     const float d12 = 1.0f / (T12.r20_r21_r22_tz() * t).vsum_all();
     x2.x() = (T12.r00_r01_r02_tx() * t).vsum_all() * d12;
     x2.y() = (T12.r10_r11_r12_ty() * t).vsum_all() * d12;
     d2 = d12 * u();
-    //return true;
   }
   inline void Project(const Rigid3D &T12, const Point2D &x1, LA::Vector2f &x2,
                       LA::Vector2f &Jx2) const {
@@ -296,12 +283,10 @@ class InverseGaussian {
  protected:
 
   float m_u, m_s2;
-};
+};//END FOR InverseGaussian
 
 class InverseGaussianBeta : public InverseGaussian {
-
  public:
-
   inline const float& a () const { return m_a; }    inline float& a () { return m_a; }
   inline const float& b () const { return m_b; }    inline float& b () { return m_b; }
 
@@ -343,9 +328,8 @@ class InverseGaussianBeta : public InverseGaussian {
   }
 
  protected:
-
   float m_a, m_b;
-};
+};//END FOR InverseGaussianBeta
 
 class Prior {
  public:
@@ -354,13 +338,16 @@ class Prior {
     inline void MakeZero() { memset(this, 0, sizeof(Factor)); }
    public:
     float m_e, m_F, m_a, m_b;
-  };
+  };//END FOR Factor
+
   class Reduction {
    public:
     float m_e, m_F, m_dF;
-  };
+  };//END FOR Reduction
+
  public:
   inline Prior(const float d, const float w) : m_d(d), m_w(w) {}
+  //GBA::UpdateFactorsPriorDepth() zp.GetFactor
   template<int ME_FUNCTION>
   inline void GetFactor(const float w, const float d, Factor &A) const {
     A.m_e = d - m_d;
@@ -386,7 +373,7 @@ class Prior {
   }
  public:
   float m_d, m_w;
-};
+};//END FOR Prior
 
 class Measurement {
  public:
@@ -405,7 +392,7 @@ class Measurement {
   LA::Vector3f m_Rx;
   Point2D m_z;
   LA::SymmetricMatrix2x2f m_W;
-};
+};//END FOR Measurement
 
 float ComputeError(const int N, const Measurement *zs, const InverseGaussian &d);
 bool Triangulate(const float w, const LA::AlignedVector3f &t12, const Point2D &x1,
@@ -413,5 +400,5 @@ bool Triangulate(const float w, const LA::AlignedVector3f &t12, const Point2D &x
 bool Triangulate(const float w, const int N, const Measurement *zs, InverseGaussian *d,
                  AlignedVector<float> *work, const bool initialized = true,
                  float *eAvg = NULL);
-}
+}//END FOR Depth
 #endif

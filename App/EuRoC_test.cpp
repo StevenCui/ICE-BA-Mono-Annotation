@@ -35,6 +35,7 @@
 namespace fs = boost::filesystem;
 using std::string;
 using std::vector;
+using namespace std;
 DEFINE_string(imgs_folder, "", "The folder containing l and r folders, and the calib.yaml");
 DEFINE_int32(grid_row_num, 1, "Number of rows of detection grids");
 DEFINE_int32(grid_col_num, 1, "Number of cols of detection grids");
@@ -60,15 +61,12 @@ DEFINE_bool(stereo, false, "monocular or stereo mode");
 DEFINE_bool(save_feature, false, "Save features to .dat file");
 
 size_t load_image_data(const string& image_folder,
-                       std::vector<string> &limg_name,
-                       std::vector<string> &rimg_name) {
-  LOG(INFO) << "Loading " << image_folder;
+                       std::vector<string> &limg_name) {
+  cout << "1 load_image_data Loading " << image_folder <<endl;;
   std::string l_path = image_folder + "/mav0/cam0/data.csv";
-  std::string r_path = image_folder + "/mav0/cam1/data.csv";
-  std::string r_img_prefix = image_folder + "/mav0/cam1/data/";
+  // std::string r_img_prefix = image_folder + "/mav0/cam1/data/";
   std::ifstream limg_file(l_path);
-  std::ifstream rimg_file(r_path);
-  if (!limg_file.is_open() || !rimg_file.is_open()) {
+  if (!limg_file.is_open()) {
     LOG(WARNING) << image_folder << " cannot be opened";
     return 0;
   }
@@ -80,17 +78,15 @@ size_t load_image_data(const string& image_folder,
     std::istringstream is(line);
     int i = 0;
     while (getline(is, time, ',')){
-      bool is_exist = boost::filesystem::exists(r_img_prefix + time + ".png");
-      if (i == 0 && is_exist){
+      // bool is_exist = boost::filesystem::exists(r_img_prefix + time + ".png");
+      if (i == 0){
         limg_name.push_back(time + ".png");
-        rimg_name.push_back(time + ".png");
       }
       i++;
     }
   }
   limg_file.close();
-  rimg_file.close();
-  LOG(INFO)<< "loaded " << limg_name.size() << " images";
+  cout << "2 load_image_data loaded " << limg_name.size() << " images" << endl;;
   return limg_name.size();
 }
 
@@ -98,7 +94,7 @@ size_t load_imu_data(const string& imu_file_str,
                      std::list<XP::ImuData>* imu_samples_ptr,
                      uint64_t &offset_ts_ns) {
   CHECK(imu_samples_ptr != NULL);
-  LOG(INFO) << "Loading " << imu_file_str;
+  cout <<"1 load_imu_data Loading " << imu_file_str <<endl;;
   std::ifstream imu_file(imu_file_str.c_str());
   if (!imu_file.is_open()) {
     LOG(WARNING) << imu_file_str << " cannot be opened";
@@ -145,7 +141,7 @@ size_t load_imu_data(const string& imu_file_str,
     imu_samples.push_back(imu_sample);
   }
   imu_file.close();
-  LOG(INFO)<< "loaded " << imu_samples.size() << " imu samples";
+  cout << "2 load_imu_data loaded " << imu_samples.size() <<" offset_ts_ns="<<offset_ts_ns <<endl;
   return imu_samples.size();
 }
 
@@ -159,6 +155,8 @@ void load_asl_calib(const std::string &asl_path,
   YAML::Node imu0_calib = YAML::LoadFile(imu0_yaml);
   // intrinsics
   std::vector<float> v_float = cam0_calib["intrinsics"].as<std::vector<float>>();
+  cout << "1 load_asl_calib fx= " << v_float[0] << " fy= " <<v_float[1] << 
+      " cx = " << v_float[2] << " cy = " << v_float[3] << endl;
   calib_param.Camera.cv_camK_lr[0] << v_float[0], 0, v_float[2],
       0, v_float[1], v_float[3],
       0, 0, 1;
@@ -174,6 +172,8 @@ void load_asl_calib(const std::string &asl_path,
       0, 0, 1;
   // distortion_coefficients
   std::vector<double> v_double = cam0_calib["distortion_coefficients"].as<std::vector<double>>();
+  cout << "2 load_asl_calib dist coeff: "<<v_double[0]<<", "<<v_double[1]<<", "<<v_double[2]<<", "<<v_double[3]<<endl;
+
   calib_param.Camera.cv_dist_coeff_lr[0] = (cv::Mat_<float>(8, 1) << static_cast<float>(v_double[0]), static_cast<float>(v_double[1]),
       static_cast<float>(v_double[2]), static_cast<float>(v_double[3]), 0.0, 0.0, 0.0, 0.0);
   v_double = cam1_calib["distortion_coefficients"].as<std::vector<double>>();
@@ -181,10 +181,17 @@ void load_asl_calib(const std::string &asl_path,
       static_cast<float>(v_double[2]), static_cast<float>(v_double[3]), 0.0, 0.0, 0.0, 0.0);
   //TBS
   v_double = cam0_calib["T_BS"]["data"].as<std::vector<double>>();
+  //b_t_c0 is body from camera
   Eigen::Matrix4d b_t_c0 = Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(&v_double[0]);
+  cout <<"3 load_asl_calib T_b_c0: \n" << b_t_c0(0,0) << ", "<< b_t_c0(0,1) << ", "<< b_t_c0(0,2) << ", "<< b_t_c0(0,3) << ";\n"
+    << b_t_c0(1,0) << ", "<< b_t_c0(1,1) << ", "<< b_t_c0(1,2) << ", "<< b_t_c0(1,3)<< ";\n"
+    << b_t_c0(2,0) << ", "<< b_t_c0(2,1) << ", "<< b_t_c0(2,2) << ", "<< b_t_c0(2,3)<< ";" <<endl;
+
   v_double = cam1_calib["T_BS"]["data"].as<std::vector<double>>();
   Eigen::Matrix4d b_t_c1 = Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(&v_double[0]);
+
   v_double = imu0_calib["T_BS"]["data"].as<std::vector<double>>();
+  //b_t_i is body from imu, and body is always the same with imu
   Eigen::Matrix4d b_t_i = Eigen::Map<Eigen::Matrix<double, 4, 4, Eigen::RowMajor>>(&v_double[0]);
   // ASL {B}ody frame is the IMU
   // {D}evice frame is the left camera
@@ -196,6 +203,7 @@ void load_asl_calib(const std::string &asl_path,
   calib_param.Camera.D_T_C_lr[1] = d_t_cam1.cast<float>();
   // Image size
   std::vector<int> v_int = cam0_calib["resolution"].as<std::vector<int>>();
+  cout<< "4 load_asl_calib resolution: "<< v_int[0] << ", " << v_int[1]<<endl;
   calib_param.Camera.img_size = cv::Size(v_int[0], v_int[1]);
   // IMU
   calib_param.Imu.accel_TK = Eigen::Matrix3f::Identity();
@@ -343,9 +351,6 @@ bool create_iba_frame(const vector<cv::KeyPoint>& kps_l,
 
 
 int main(int argc, char** argv) {
-  #ifdef CFG_STEREO
-  std::cout<<"CFG_STEREO is define!"<<std::endl;
-  #endif
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, true);
   google::InstallFailureSignalHandler();
@@ -354,12 +359,12 @@ int main(int argc, char** argv) {
     return -1;
   }
   vector<string> img_file_paths;
-  vector<string> slave_img_file_paths;
+  // vector<string> slave_img_file_paths;
   vector<string> iba_dat_file_paths;
 
   constexpr int reserve_num = 5000;
   img_file_paths.reserve(reserve_num);
-  slave_img_file_paths.reserve(reserve_num);
+  // slave_img_file_paths.reserve(reserve_num);
   fs::path p(FLAGS_imgs_folder + "/mav0/cam0");
   if (!fs::is_directory(p)) {
     LOG(ERROR) << p << " is not a directory";
@@ -368,17 +373,15 @@ int main(int argc, char** argv) {
   if (!fs::is_directory(FLAGS_imgs_folder + "/dat")) {
     fs::create_directories(FLAGS_imgs_folder + "/dat");
   }
-  vector<string> limg_name, rimg_name;
-  load_image_data(FLAGS_imgs_folder, limg_name, rimg_name);
+  vector<string> limg_name;
+  load_image_data(FLAGS_imgs_folder, limg_name);
   for (int i=0; i<limg_name.size(); i++) {
     string l_png = p.string() + "/data/" + limg_name[i];
     img_file_paths.push_back(l_png);
-    slave_img_file_paths.push_back(FLAGS_imgs_folder + "/mav0/cam1/data/" + rimg_name[i]);
+    // slave_img_file_paths.push_back(FLAGS_imgs_folder + "/mav0/cam1/data/" + rimg_name[i]);
     iba_dat_file_paths.push_back(FLAGS_imgs_folder + "/dat/" + limg_name[i] + ".dat");
   }
-  if (!FLAGS_stereo) {
-    slave_img_file_paths.clear();
-  }
+
 
   if (img_file_paths.size() == 0) {
     LOG(ERROR) << "No image files for detection";
@@ -393,14 +396,14 @@ int main(int argc, char** argv) {
   }
   // Create masks based on FOVs computed from intrinsics
   std::vector<cv::Mat_<uchar> > masks(2);
-  for (int lr = 0; lr < 2; ++lr) {
+  for (int lr = 0; lr < 1; ++lr) {
     float fov;
     if (XP::generate_cam_mask(duo_calib_param.Camera.cv_camK_lr[lr],
                               duo_calib_param.Camera.cv_dist_coeff_lr[lr],
                               duo_calib_param.Camera.img_size,
                               &masks[lr],
                               &fov)) {
-      std::cout << "camera " << lr << " fov: " << fov << " deg\n";
+      std::cout << "1 main camera " << lr << " fov: " << fov << " deg\n";
     }
   }
 
@@ -409,7 +412,7 @@ int main(int argc, char** argv) {
   std::string imu_file = FLAGS_imgs_folder + "/mav0/imu0/data.csv";
   uint64_t offset_ts_ns;
   if (load_imu_data(imu_file, &imu_samples, offset_ts_ns) > 0) {
-    std::cout << "Load imu data. Enable OF prediciton with gyro\n";
+    std::cout << "2 main Load imu data. Enable OF prediciton with gyro\n";
   } else {
     std::cout << "Cannot load imu data.\n";
     return -1;
@@ -429,17 +432,7 @@ int main(int argc, char** argv) {
                                                !FLAGS_not_use_fast,
                                                FLAGS_uniform_radius,
                                                duo_calib_param.Camera.img_size);
-  XP::ImgFeaturePropagator slave_img_feat_propagator(
-      duo_calib_param.Camera.cameraK_lr[1],  // cur_camK
-      duo_calib_param.Camera.cameraK_lr[0],  // ref_camK
-      duo_calib_param.Camera.cv_dist_coeff_lr[1],  // cur_dist_coeff
-      duo_calib_param.Camera.cv_dist_coeff_lr[0],  // ref_dist_coeff
-      masks[1],
-      FLAGS_pyra_level,
-      FLAGS_min_feature_distance_over_baseline_ratio,
-      FLAGS_max_feature_distance_over_baseline_ratio);
-  const Eigen::Matrix4f T_Cl_Cr =
-      duo_calib_param.Camera.D_T_C_lr[0].inverse() * duo_calib_param.Camera.D_T_C_lr[1];
+
   XP::PoseViewer pose_viewer;
   pose_viewer.set_clear_canvas_before_draw(true);
 
@@ -504,6 +497,7 @@ int main(int argc, char** argv) {
     }
     // get timestamp from image file name (s)
     const float time_stamp = get_timestamp_from_img_name(img_file_paths[it_img], offset_ts_ns);
+    //cout << "3 main img id is "<< it_img << " timestamp is "<<time_stamp <<" offset_ts_ns= "<<offset_ts_ns<<endl;
     std::vector<cv::KeyPoint> key_pnts;
     cv::Mat orb_feat;
     cv::Mat pre_img_in_smooth;
@@ -515,7 +509,7 @@ int main(int argc, char** argv) {
 
     // Get the imu measurements within prev_time_stamp and time_stamp to compute old_R_new
     imu_meas.reserve(10);
-    for (auto it_imu = imu_samples.begin(); it_imu != imu_samples.end(); ) {
+    for (auto it_imu = imu_samples.begin(); it_imu != imu_samples.end(); ) {      
       if (it_imu->time_stamp < time_stamp) {
         imu_meas.push_back(*it_imu);
         it_imu++;
@@ -524,20 +518,12 @@ int main(int argc, char** argv) {
         break;
       }
     }
-    VLOG(1) << "imu_meas size = " << imu_meas.size();
     VLOG(1) << "img ts prev -> curr " << prev_time_stamp << " -> " << time_stamp;
     if (imu_meas.size() > 0) {
       VLOG(1) << "imu ts prev -> curr " << imu_meas.front().time_stamp
               << " -> " << imu_meas.back().time_stamp;
     }
 
-    if (!slave_img_file_paths.empty()) {
-      if (!slave_img_file_paths[it_img].empty()) {
-        cv::Mat slave_img_in;
-        slave_img_in = cv::imread(slave_img_file_paths[it_img], CV_LOAD_IMAGE_GRAYSCALE);
-        cv::blur(slave_img_in, slave_img_smooth, cv::Size(3, 3));
-      }
-    }
     // use optical flow  from the 1st frame
     if (it_img != FLAGS_start_idx) {
       CHECK(it_img >= 1);
@@ -612,22 +598,7 @@ int main(int argc, char** argv) {
       feat_track_detector.build_img_pyramids(img_in_smooth,
                                              XP::FeatureTrackDetector::BUILD_TO_PREV);
     }
-    if (slave_img_smooth.rows > 0) {
-      CHECK(orb_feat_slave.empty());
-      auto det_slave_img_start = std::chrono::high_resolution_clock::now();
-      slave_img_feat_propagator.PropagateFeatures(slave_img_smooth,  // cur
-                                                  img_in_smooth,  // ref
-                                                  key_pnts,
-                                                  T_Cl_Cr,  // T_ref_cur
-                                                  &key_pnts_slave,
-                                                  &orb_feat_slave,
-                                                  false);  // draw_debug
-      VLOG(1) << "detect slave key_pnts.size(): " << key_pnts_slave.size() << " takes "
-              << std::chrono::duration_cast<std::chrono::microseconds>(
-                  std::chrono::high_resolution_clock::now() - det_slave_img_start).count() / 1e3
-              << " ms";
-    }
-
+    
     std::sort(key_pnts.begin(), key_pnts.end(), cmp_by_class_id);
     std::sort(key_pnts_slave.begin(), key_pnts_slave.end(), cmp_by_class_id);
     // push to IBA

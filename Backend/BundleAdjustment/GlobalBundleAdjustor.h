@@ -462,7 +462,7 @@ class GlobalBundleAdjustor : public MT::Thread {
     inline void LoadB(FILE *fp) { CameraPrior::Motion::LoadB(fp); UT::LoadB(m_iKF, fp); }
    public:
     int m_iKF;
-  };
+  };//END FOR CameraPriorMotion
 
   enum TimerType { TM_TOTAL, TM_SYNCHRONIZE, TM_FACTOR, TM_SCHUR_COMPLEMENT, TM_CAMERA, TM_DEPTH,
                    TM_UPDATE, TM_TYPES };
