@@ -697,9 +697,6 @@ class U {
 };//END FOR U
 inline void Marginalize(const xp128f &mdd, const Source::M1 &Mx, const A1 &Az, M1 *Mz1,
                         M2 *Mz2, LA::ProductVector6f *adcz) {
-#ifdef CFG_DEBUG
-  UT_ASSERT(mdd[0] == Mx.m_mdx.m_add.m_a);
-#endif
   Az.m_adczA.GetScaled(mdd, Mz1->m_adczA);
   adcz->Set(Az.m_adczA);
   LA::AlignedMatrix6x6f::abT(Mx.m_mdx.m_adc, *adcz, Mz2->m_Mcxz);

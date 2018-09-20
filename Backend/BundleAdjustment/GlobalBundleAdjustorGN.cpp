@@ -210,18 +210,18 @@ void GlobalBundleAdjustor::UpdateFactorsFeature()
 }
 
 void GlobalBundleAdjustor::UpdateFactorsPriorCameraPose() {
-
   Camera::Factor::Unitary::CC Au, dAu;
   Camera::Factor::Binary::CC Ab, dAb;
   CameraPrior::Pose::Factor::Auxiliary U;
-  //float dF;
+  //m_Zps?
   const int NZ = static_cast<int>(m_Zps.size());
-
   for (int iZ = 0; iZ < NZ; ++iZ) 
   {
     const CameraPrior::Pose &Z = m_Zps[iZ];
+    //m_iKFr is KF id need to reserve?
     const bool ucr = (m_ucs[Z.m_iKFr] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0;
     bool uc = ucr;
+    //m_iKFs are KFs that are related with m_iKFr
     const int N = static_cast<int>(Z.m_iKFs.size());
     for (int i = 0; i < N && !uc; ++i) {
       uc = (m_ucs[Z.m_iKFs[i]] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0;
@@ -230,10 +230,14 @@ void GlobalBundleAdjustor::UpdateFactorsPriorCameraPose() {
       continue;
     }
 
+    //m_Aps? all prior?
     CameraPrior::Pose::Factor &A = m_Aps[iZ];
+    //m_ApTmp is 6x6, m_bpTmp is 6x1
     A.Swap(m_ApTmp, m_bpTmp);
+    //N?
     m_work.Resize(U.BindSize(N) / sizeof(float));
     U.Bind(m_work.Data(), N);
+
     if (GBA_PRIOR_CAMERA_POSE_ROBUST) {
       Z.GetError(m_Cs, &A.m_Je.m_e, BA_ANGLE_EPSILON);
       const float F = (Z.GetCost(1.0f, A.m_Je.m_e) - Z.m_xTb) / BA_WEIGHT_FEATURE;
@@ -246,7 +250,7 @@ void GlobalBundleAdjustor::UpdateFactorsPriorCameraPose() {
     //?
     for (int i = -1, _i = 0; i < N; ++i, ++_i) 
     {
-      const int iKF = i == -1 ? Z.m_iKFr : Z.m_iKFs[i];
+      const int iKF = (i == -1)? Z.m_iKFr : Z.m_iKFs[i];
       Au.Set(A.m_A[_i][_i], A.m_b[_i]);
       uc = (m_ucs[iKF] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0;
       if (uc) {
@@ -279,7 +283,6 @@ void GlobalBundleAdjustor::UpdateFactorsPriorCameraPose() {
       const bool uc1 = (m_ucs[iKF1] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0;
       for (int i2 = i1 + 1, _i2 = i2 + 1; i2 < N; ++i2, ++_i2) {
         const int iKF2 = Z.m_iKFs[i2];
-
         const bool uc2 = (m_ucs[iKF2] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0;
         const CameraPrior::Element::CC &_Ab = A.m_A[_i1][_i2];
         KeyFrame &KF2 = m_KFs[iKF2];
@@ -568,6 +571,7 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
 
   int Nd = 0;
   m_idxsTmp1.assign(nKFs, -1);
+  //iKF2X: matched KF to source feature index
   int *iKF2X = m_idxsTmp1.data();
   std::vector<int> &iX2d = m_idxsTmp2;
   iX2d.resize(0);
@@ -580,6 +584,7 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
     }
     ubyte *uds = m_uds.data() + m_iKF2d[iKF];
     const KeyFrame &KF = m_KFs[iKF];
+    //iX: always equal to id, Nx?
     const int iX = static_cast<int>(iX2d.size()), Nx = static_cast<int>(KF.m_xs.size());
     iKF2X[iKF] = iX;
     iX2d.resize(iX + Nx, -1);
@@ -645,11 +650,13 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
       FTR::Factor::Full::Source::M2 &M = KF.m_Mxs2[ix];
       if (id >= 0) {
         if (uc || (uds[ix] & GBA_FLAG_TRACK_UPDATE_INFORMATION_ZERO)) {
-          FTR::Factor::Full::Source::Marginalize(_mdds[id], KF.m_Axs[ix].m_Sadx, &KF.m_Mxs1[ix], &M);
+          FTR::Factor::Full::Source::Marginalize(_mdds[id], KF.m_Axs[ix].m_Sadx, 
+                &KF.m_Mxs1[ix], &M);
           SMcxx += M.m_Mcxx;
         } else {
           dMcu = M.m_Mcxx;
-          FTR::Factor::Full::Source::Marginalize(_mdds[id], KF.m_Axs[ix].m_Sadx, &KF.m_Mxs1[ix], &M);
+          FTR::Factor::Full::Source::Marginalize(_mdds[id], KF.m_Axs[ix].m_Sadx, 
+                &KF.m_Mxs1[ix], &M);
           Camera::Factor::Unitary::CC::AmB(M.m_Mcxx, dMcu, dMcu);
           SMcxx += dMcu;
         }
@@ -686,6 +693,7 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
       }
       const ubyte *_uds = m_uds.data() + m_iKF2d[_iKF];
       const int *_ix2mdd = iX2d.data() + _iX;
+      //Z.m_ik?
       Camera::Factor::Binary::CC &SMcxz = KF.m_Zm.m_SMczms[Z.m_ik];
 
       const bool ucx = (m_ucs[_iKF] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0, ucr = ucx || ucz;
@@ -705,13 +713,15 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
             SMcxz += M.m_Mcxz;
             SMczz += M.m_Mczz;
             m_marksTmp1[iz] = 1;
-          } else {
+          } 
+          else {
             if (!ucr) {
               dMcb = M.m_Mcxz;
             }
             if (!ucz) {
               dMcu = M.m_Mczz;
             }
+
             FTR::Factor::Full::Marginalize(_mdds[id], _KF.m_Mxs1[ix], KF.m_Azs1[iz], &KF.m_Mzs1[iz], &M, &adcz);
             if (ucr) {
               SMcxz += M.m_Mcxz;
@@ -726,7 +736,8 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
               SMczz += dMcu;
             }
           }
-        } else {
+        }//else for id < 0
+        else {
 
           if (!ucr) {
             M.m_Mcxz.GetMinus(dMcb);
@@ -779,6 +790,7 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
       }
     }
   }
+  
   for (int iKF = 0; iKF < nKFs; ++iKF) {
     const int iX = iKF2X[iKF];
     if (iX == -1) {

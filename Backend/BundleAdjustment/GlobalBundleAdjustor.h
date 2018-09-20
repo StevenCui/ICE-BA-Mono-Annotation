@@ -745,11 +745,8 @@ class GlobalBundleAdjustor : public MT::Thread {
   AlignedVector<LA::ProductVector6f> m_bcs;
   AlignedVector<LA::AlignedVector9f> m_bmsLM;
   LA::AlignedVectorXf m_bs;
-#ifdef CFG_PCG_DOUBLE
   LA::AlignedVectorXd m_xs, m_rs, m_ps, m_zs, m_drs, m_dxs, m_e2s;
-#else
-  LA::AlignedVectorXf m_xs, m_rs, m_ps, m_zs, m_drs, m_dxs, m_e2s;
-#endif
+
   LA::AlignedVectorXf m_xp2s, m_xr2s, m_xv2s, m_xba2s, m_xbw2s, m_xds, m_x2s, m_axds;
   AlignedVector<LA::ProductVector6f> m_xcsP;
   AlignedVector<LA::AlignedVector6f> m_Axcs;
