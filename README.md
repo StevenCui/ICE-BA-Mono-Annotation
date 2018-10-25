@@ -1,3 +1,9 @@
+此版本仅为了梳理代码逻辑，因此只保留单目VIO代码，删除双目、GroundTruth、Debug等代码，并对GBA部分进行注释。
+
+
+
+
+
 # ICE-BA
 ## ICE-BA: Incremental, Consistent and Efficient Bundle Adjustment for Visual-Inertial SLAM  
 We present ICE-BA, an incremental, consistent and efficient bundle adjustment for visual-inertial SLAM, which takes feature tracks, IMU measurements and optionally the loop constraints as input, performs in parallel both local BA over the sliding window and global BA over all keyframes, and outputs camera pose and updated map points for each frame in real-time. The main contributions include:  
