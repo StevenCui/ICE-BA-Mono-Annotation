@@ -213,12 +213,12 @@ void GlobalBundleAdjustor::UpdateFactorsPriorCameraPose() {
   Camera::Factor::Unitary::CC Au, dAu;
   Camera::Factor::Binary::CC Ab, dAb;
   CameraPrior::Pose::Factor::Auxiliary U;
-  //m_Zps?
+  //m_Zps are all the marg prior
   const int NZ = static_cast<int>(m_Zps.size());
   for (int iZ = 0; iZ < NZ; ++iZ) 
   {
     const CameraPrior::Pose &Z = m_Zps[iZ];
-    //m_iKFr is KF id need to reserve?
+    //m_iKFr is the reference KF id
     const bool ucr = (m_ucs[Z.m_iKFr] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0;
     bool uc = ucr;
     //m_iKFs are KFs that are related with m_iKFr
@@ -230,11 +230,11 @@ void GlobalBundleAdjustor::UpdateFactorsPriorCameraPose() {
       continue;
     }
 
-    //m_Aps? all prior?
+    //m_Aps are all the factor of all marg prior
     CameraPrior::Pose::Factor &A = m_Aps[iZ];
     //m_ApTmp is 6x6, m_bpTmp is 6x1
     A.Swap(m_ApTmp, m_bpTmp);
-    //N?
+    //N is the size of KFs related with the marg frame m_iKFr
     m_work.Resize(U.BindSize(N) / sizeof(float));
     U.Bind(m_work.Data(), N);
 
@@ -247,7 +247,7 @@ void GlobalBundleAdjustor::UpdateFactorsPriorCameraPose() {
       Z.GetFactor(BA_WEIGHT_PRIOR_CAMERA_POSE, m_Cs, &A, &U, BA_ANGLE_EPSILON);
     }
 
-    //?
+    //
     for (int i = -1, _i = 0; i < N; ++i, ++_i) 
     {
       const int iKF = (i == -1)? Z.m_iKFr : Z.m_iKFs[i];
@@ -276,12 +276,13 @@ void GlobalBundleAdjustor::UpdateFactorsPriorCameraPose() {
       }
     }
 
-    //KF2.m_SAps[ip]?
+    //KF2.m_SAps[ip] [S|g]中非对角线处，除参考关键帧之外的共视帧之间的约束
     for (int i1 = 0, _i1 = 1; i1 < N; ++i1, ++_i1) 
     {
       const int iKF1 = Z.m_iKFs[i1];
       const bool uc1 = (m_ucs[iKF1] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0;
-      for (int i2 = i1 + 1, _i2 = i2 + 1; i2 < N; ++i2, ++_i2) {
+      for (int i2 = i1 + 1, _i2 = i2 + 1; i2 < N; ++i2, ++_i2) 
+      {
         const int iKF2 = Z.m_iKFs[i2];
         const bool uc2 = (m_ucs[iKF2] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0;
         const CameraPrior::Element::CC &_Ab = A.m_A[_i1][_i2];
@@ -303,6 +304,9 @@ void GlobalBundleAdjustor::UpdateFactorsPriorCameraMotion() {
   if (m_ZpLM.Invalid()) {
     return;
   }
+  //m_iKF is reference KF id
+  //m_Cs are all the camera in GBA
+  //m_CsLM are all the camera in LBA
   const int im = m_ZpLM.m_iKF - m_Cs.Size() + m_CsLM.Size();
   const ubyte ucm = m_ucmsLM[im];
   const bool uc = (ucm & (GBA_FLAG_CAMERA_MOTION_UPDATE_ROTATION |
@@ -329,6 +333,7 @@ void GlobalBundleAdjustor::UpdateFactorsPriorCameraMotion() {
   //m_ZpLM.m_iKF? and im?
   Camera::Factor::Unitary::CC &SAcc = m_SAcus[m_ZpLM.m_iKF];
   Camera::Factor::Unitary &SAcm = m_SAcmsLM[im].m_Au;
+
   if (uc) {
     //Increase3 only update rr and b in SAcc
     SAcc.Increase3(m_ApLM.m_Arr.m_A, m_ApLM.m_Arr.m_b);
@@ -336,6 +341,7 @@ void GlobalBundleAdjustor::UpdateFactorsPriorCameraMotion() {
     CameraPrior::Motion::Factor::RR::AmB(m_ApLM.m_Arr, dArr, dArr);
     SAcc.Increase3(dArr.m_A, dArr.m_b);
   }
+
   if (ucm) {
     SAcm.m_Acm.Increase3(m_ApLM.m_Arm);
     SAcm.m_Amm += m_ApLM.m_Amm;
@@ -361,7 +367,8 @@ void GlobalBundleAdjustor::UpdateFactorsPriorDepth() {
     const Depth::Prior zp(KF.m_d.u(), 1.0f / (BA_VARIANCE_PRIOR_FRAME_DEPTH + KF.m_d.s2()));
     //m_xs?
     const int Nx = int(KF.m_xs.size());
-    for (int ix = 0; ix < Nx; ++ix) {
+    for (int ix = 0; ix < Nx; ++ix) 
+    {
       if (!(uds[ix] & GBA_FLAG_TRACK_UPDATE_DEPTH)) {
         continue;
       }
@@ -551,12 +558,11 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
   for (int iKF = 0; iKF < nKFs; ++iKF) 
   {
     KeyFrame &KF = m_KFs[iKF];
-    //m_ucs?
     if (m_ucs[iKF] & GBA_FLAG_FRAME_UPDATE_CAMERA) 
     {
-      //m_SMcus?
+      //m_SMcus are the diagonal in Schur Matrix S
       m_SMcus[iKF].MakeZero();
-      //m_Zm.m_SMczms?
+      //m_Zm.m_SMczms are the upper triangular int Schur Matrix
       KF.m_Zm.m_SMczms.MakeZero();
     } 
     else {
@@ -589,7 +595,8 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
     iKF2X[iKF] = iX;
     iX2d.resize(iX + Nx, -1);
     int *ix2d = iX2d.data() + iX;
-    for (int ix = 0; ix < Nx; ++ix) {
+    for (int ix = 0; ix < Nx; ++ix) 
+    {
       if (!(uds[ix] & GBA_FLAG_TRACK_UPDATE_INFORMATION)) {
         continue;
       } else if (KF.m_Axs[ix].m_Sadx.m_add.m_a > epsd) {
@@ -629,7 +636,8 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
   }
 
   Camera::Factor::Unitary::CC dMcu;
-  for (int iKF = 0; iKF < nKFs; ++iKF) {
+  for (int iKF = 0; iKF < nKFs; ++iKF) 
+  {
     const int iX = iKF2X[iKF];
     if (iX == -1) {
       continue;
@@ -660,9 +668,7 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
           Camera::Factor::Unitary::CC::AmB(M.m_Mcxx, dMcu, dMcu);
           SMcxx += dMcu;
         }
-
       } else {
-
         if (!uc) {
           M.m_Mcxx.GetMinus(dMcu);
           SMcxx += dMcu;
@@ -685,7 +691,8 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
     const bool ucz = (m_ucs[iKF] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0;
     const int NZ = static_cast<int>(KF.m_Zs.size());
 
-    for (int iZ = 0; iZ < NZ; ++iZ) {
+    for (int iZ = 0; iZ < NZ; ++iZ) 
+    {
       const FRM::Measurement &Z = KF.m_Zs[iZ];
       const int _iKF = Z.m_iKF, _iX = iKF2X[_iKF];
       if (_iX == -1) {
@@ -698,7 +705,8 @@ void GlobalBundleAdjustor::UpdateSchurComplement() {
 
       const bool ucx = (m_ucs[_iKF] & GBA_FLAG_FRAME_UPDATE_CAMERA) != 0, ucr = ucx || ucz;
       const KeyFrame &_KF = m_KFs[_iKF];
-      for (int iz = Z.m_iz1; iz < Z.m_iz2; ++iz) {
+      for (int iz = Z.m_iz1; iz < Z.m_iz2; ++iz) 
+      {
         const int ix = KF.m_zs[iz].m_ix, id = _ix2mdd[ix];
         if (id == -1) {
           continue;

@@ -157,24 +157,15 @@ class GlobalMap {
     inline void operator = (const KeyFrameBA &KF) {
       *((KeyFrame *) this) = KF;
       m_Apds.Set(KF.m_Apds);
-#ifdef CFG_STEREO
-      m_Ards.Set(KF.m_Ards);
-#endif
     }
     inline void Initialize(const FRM::Frame &F) {
       KeyFrame::Initialize(F);
       m_Apds.Resize(0);
-#ifdef CFG_STEREO
-      m_Ards.Resize(0);
-#endif
     }
     inline void PushFeatures(const std::vector<FTR::Source> &xs) {
       KeyFrame::PushFeatures(xs);
       const int ix = m_Apds.Size(), Nx = static_cast<int>(m_xs.size()) - ix;
       m_Apds.InsertZero(ix, Nx, NULL);
-#ifdef CFG_STEREO
-      m_Ards.InsertZero(ix, Nx, NULL);
-#endif
     }
     inline void InvalidateFeatures(const ubyte *mxs) {
       const int Nx = static_cast<int>(m_xs.size());
@@ -183,44 +174,26 @@ class GlobalMap {
           continue;
         }
         m_Apds[ix].MakeZero();
-#ifdef CFG_STEREO
-        m_Ards[ix].MakeZero();
-#endif
       }
     }
     inline void MakeZero() {
       m_Apds.MakeZero();
-#ifdef CFG_STEREO
-      m_Ards.MakeZero();
-#endif
     }
     inline void SaveB(FILE *fp) const {
       KeyFrame::SaveB(fp);
       m_Apds.SaveB(fp);
-#ifdef CFG_STEREO
-      m_Ards.SaveB(fp);
-#endif
     }
     inline void LoadB(FILE *fp) {
       KeyFrame::LoadB(fp);
       m_Apds.LoadB(fp);
-#ifdef CFG_STEREO
-      m_Ards.LoadB(fp);
-#endif
     }
     inline void AssertConsistency(const int iKF) const {
       KeyFrame::AssertConsistency(iKF);
 	  const int Nx = static_cast<int>(m_xs.size());
       UT_ASSERT(m_Apds.Size() == Nx);
-#ifdef CFG_STEREO
-      UT_ASSERT(m_Ards.Size() == Nx);
-#endif
     }
    public:
     AlignedVector<Depth::Prior::Factor> m_Apds;
-#ifdef CFG_STEREO
-    AlignedVector<FTR::Factor::Stereo> m_Ards;
-#endif
   };
 
  public:
@@ -229,17 +202,9 @@ class GlobalMap {
   void LBA_PushKeyFrame(const Camera &C);
   void LBA_DeleteKeyFrame(const int iFrm, const int iKF);
   ubyte LBA_Synchronize(const int iFrm, AlignedVector<Rigid3D> &Cs, AlignedVector<Rigid3D> &CsBkp,
-                        std::vector<ubyte> &ucs
-#ifdef CFG_HANDLE_SCALE_JUMP
-                      , std::vector<float> &ds, std::vector<float> &dsBkp
-#endif
-                      );
+                        std::vector<ubyte> &ucs);
   void GBA_Update(const std::vector<int> &iFrms, const AlignedVector<Rigid3D> &Cs,
-                  const std::vector<ubyte> &ucs
-#ifdef CFG_HANDLE_SCALE_JUMP
-                , const std::vector<float> &ds
-#endif
-                );
+                  const std::vector<ubyte> &ucs);
 
   void SaveB(FILE *fp);
   void LoadB(FILE *fp);

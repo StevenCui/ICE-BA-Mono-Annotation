@@ -808,12 +808,6 @@ class Camera {
       }
       inline void GetError(const Rigid3D &T, Error &e, const float eps) const {
         Rotation3D eR;
-        //Rotation3D RT;
-        //LA::AlignedVector3f g;
-        //T.GetGravity(g);
-        //RT.MakeIdentity(&g);
-        //RT.Transpose();
-        //Rotation3D::AB(RT, T, eR);
         Rotation3D::AB(m_RT, T, eR);
         eR.GetRodrigues(e.m_er, eps);
         T.GetPosition(e.m_ep);
@@ -826,18 +820,13 @@ class Camera {
       }
       inline void GetErrorJacobian(const Rigid3D &T, ErrorJacobian &Je, const float eps) const {
         Rotation3D eR;
-        //Rotation3D RT;
-        //LA::AlignedVector3f g;
-        //T.GetGravity(g);
-        //RT.MakeIdentity(&g);
-        //RT.Transpose();
-        //Rotation3D::AB(RT, T, eR);
         Rotation3D::AB(m_RT, T, eR);
         eR.GetRodrigues(Je.m_e.m_er, eps);
         T.GetPosition(Je.m_e.m_ep);
         Rotation3D::GetRodriguesJacobianInverse(Je.m_e.m_er, Je.m_Jr, eps);
         Je.m_Jr = Je.m_Jr * eR;
       }
+      //GBA::UpdateFactorsFixOrigin invoke the GetFactor
       inline void GetFactor(const Rigid3D &T, Factor &A, const float eps) const {
         GetErrorJacobian(T, A.m_Je, eps);
         const LA::AlignedVector3f eTWr = A.m_Je.m_e.m_er * m_wr;

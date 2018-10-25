@@ -115,12 +115,6 @@ class AlignedMatrixX {
     if (Nr == m_Nr && Nc == m_Nc && symmetric == m_symmetric) {
       return;
     }
-#ifdef CFG_DEBUG
-    if (symmetric) {
-      UT_ASSERT(Nr == Nc);
-      //UT_ASSERT(SIMD::Ceil<TYPE>(Nc) == Nc);
-    }
-#endif
     const int NcC = symmetric ? Nc : SIMD::Ceil<TYPE>(Nc);
     const int N = symmetric ? SIMD::Ceil<TYPE>((Nc * (Nc + 1)) >> 1) : Nr * NcC;
     if (N > m_capacity) {
@@ -129,9 +123,6 @@ class AlignedMatrixX {
       if (dataBkp) {
         if (retain) {
           //memcpy(m_data, dataBkp, sizeof(TYPE) * N);
-#ifdef CFG_DEBUG
-          UT_ASSERT(m_symmetric == symmetric);
-#endif
           TYPE *row = m_data;
           if (symmetric) {
             size_t size = sizeof(TYPE) * m_Nc;
@@ -155,9 +146,6 @@ class AlignedMatrixX {
       m_NcC = NcC;
       m_capacity = N;
     } else if (Nr < m_Nr && Nc < m_NcC) {
-#ifdef CFG_DEBUG
-      UT_ASSERT(m_symmetric == symmetric);
-#endif
       m_Nr = Nr;
       m_Nc = Nc;
       m_rows.resize(Nr);
@@ -182,10 +170,6 @@ class AlignedMatrixX {
   }
 
   inline void Copy(const AlignedMatrixX<TYPE> &M) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(m_symmetric == M.m_symmetric);
-    UT_ASSERT(m_Nr == M.m_Nr && m_Nc == M.m_Nc);
-#endif
     if (m_symmetric) {
       size_t size = sizeof(TYPE) * m_Nc;
       for (int i = 0; i < m_Nr; ++i, size -= sizeof(TYPE)) {
@@ -204,12 +188,6 @@ class AlignedMatrixX {
       SIMD::Free<TYPE>(m_data);
     }
     m_data = (TYPE *) M;
-#ifdef CFG_DEBUG
-    if (symmetric) {
-      UT_ASSERT(Nr == Nc);
-      //UT_ASSERT(SIMD::Ceil<TYPE>(Nc) == Nc);
-    }
-#endif
     const int NcC = symmetric ? Nc : SIMD::Ceil<TYPE>(Nc);
     const int N = symmetric ? SIMD::Ceil<TYPE>((Nc * (Nc + 1)) >> 1) : Nr * NcC;
     m_symmetric = symmetric;
@@ -234,12 +212,6 @@ class AlignedMatrixX {
   }
   inline void* BindNext() { return m_data ? (m_data + m_capacity) : NULL; }
   inline int BindSize(const int Nr, const int Nc, const bool symmetric = false) const {
-#ifdef CFG_DEBUG
-    if (symmetric) {
-      UT_ASSERT(Nr == Nc);
-      //UT_ASSERT(SIMD::Ceil<TYPE>(Nc) == Nc);
-    }
-#endif
     return sizeof(TYPE) * (symmetric ? SIMD::Ceil<TYPE>((Nc * (Nc + 1)) >> 1)
                                      : (Nr * SIMD::Ceil<TYPE>(Nc)));
   }
@@ -261,9 +233,6 @@ class AlignedMatrixX {
   }
 
   inline AlignedMatrixX<TYPE> GetColumn(const int j, const int Nr) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(j >= 0 && j < m_Nc);
-#endif
     AlignedMatrixX<TYPE> M;
     M.m_own = M.m_symmetric = false;
     M.m_data = m_data + j;
@@ -278,10 +247,6 @@ class AlignedMatrixX {
     return M;
   }
   inline AlignedMatrixX<TYPE> GetBlock(const int Nr, const int Nc) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(Nr >= 0 && Nr <= m_Nr);
-    UT_ASSERT(Nc >= 0 && Nc <= m_Nc);
-#endif
     AlignedMatrixX<TYPE> M;
     M.m_own = false;
     M.m_symmetric = m_symmetric;
@@ -297,10 +262,6 @@ class AlignedMatrixX {
     return M;
   }
   inline AlignedMatrixX<TYPE> GetBlock(const int i, const int j, const int Nr, const int Nc) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + Nr <= m_Nr);
-    UT_ASSERT(j >= 0 && j + Nc <= m_Nc);
-#endif
     AlignedMatrixX<TYPE> M;
     M.m_own = false;
     M.m_symmetric = m_symmetric;
@@ -317,9 +278,6 @@ class AlignedMatrixX {
   }
 
   inline void Erase(const int i, const int N = 1) {
-#ifdef CFG_DEBUG
-    UT_ASSERT(i >= 0 && i + N <= m_Nr && i + N <= m_Nc);
-#endif
     const int Nc = m_Nc - N;
     if (m_symmetric) {
       for (int j = 0; j <= i; ++j) {
@@ -348,51 +306,8 @@ class AlignedMatrixX {
   }
 
   inline void InsertZero(const int i, const int N, AlignedVector<float> *work) {
-//#ifdef CFG_DEBUG
-#if 0
-    UT_ASSERT(i >= 0 && i <= m_Nr && i <= m_Nc);
-#endif
     const size_t size0 = sizeof(TYPE) * N;
     if (i < m_Nr && i < m_Nc) {
-#if 0
-      AlignedMatrixX<TYPE> MTmp;
-      work->Resize(MTmp.BindSize(m_Nr, m_Nc, m_symmetric) / sizeof(float));
-      MTmp.Bind(work->Data(), m_Nr, m_Nc, m_symmetric);
-      MTmp.Set(*this);
-      Resize(m_Nr + N, m_Nc + N, m_symmetric);
-      const int i2 = i + N;
-      if (m_symmetric) {
-        size_t size1 = sizeof(TYPE) * i, size2 = sizeof(TYPE) * (m_Nc - i2);
-        for (int j = 0; j < i; ++j, size1 -= sizeof(TYPE)) {
-          memcpy(m_rows[j] + j, MTmp[j] + j, size1);
-          memset(m_rows[j] + i, 0, size0);
-          memcpy(m_rows[j] + i2, MTmp[j] + i, size2);
-        }
-        size2 += size0;
-        for (int j = i; j < i2; ++j, size2 -= sizeof(TYPE)) {
-          memset(m_rows[j] + j, 0, size2);
-        }
-        for (int j1 = i, j2 = i2; j2 < m_Nr; ++j1, ++j2, size2 -= sizeof(TYPE)) {
-          memcpy(m_rows[j2] + j2, MTmp[j1] + j1, size2);
-        }
-      } else {
-        const size_t size1 = sizeof(TYPE) * i, size2 = sizeof(TYPE) * (m_Nc - i2);
-        for (int j = 0; j < i; ++j) {
-          memcpy(m_rows[j], MTmp[j], size1);
-          memset(m_rows[j] + i, 0, size0);
-          memcpy(m_rows[j] + i2, MTmp[j] + i, size2);
-        }
-        const size_t size = size1 + size2 + size0;
-        for (int j = i; j < i2; ++j) {
-          memset(m_rows[i], 0, size);
-        }
-        for (int j1 = i, j2 = i2; j2 < m_Nr; ++j1, ++j2) {
-          memcpy(m_rows[j2], MTmp[j1], size1);
-          memset(m_rows[j2] + i, 0, size0);
-          memcpy(m_rows[j2] + i2, MTmp[j1] + i, size2);
-        }
-      }
-#else
       const int i2 = i + N, Nc2 = m_Nc - i;
       const size_t size2 = sizeof(TYPE) * Nc2;
       work->Resize(static_cast<int>(size2 / sizeof(float)));
@@ -426,7 +341,6 @@ class AlignedMatrixX {
           memset(m_rows[_i], 0, size);
         }
       }
-#endif
     } else {
       const int Nr = m_Nr, Nc = m_Nc;
       Resize(Nr + N, Nc + N, m_symmetric, true);
