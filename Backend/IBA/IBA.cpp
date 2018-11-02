@@ -989,8 +989,7 @@ const GlobalMap::InputKeyFrame& Internal::PushKeyFrame(const KeyFrame &KF, const
   m_CsKF.push_back(LocalMap::CameraKF(m_IKF.m_C.m_T, KF.iFrm));
 
   const int Nx1 = static_cast<int>(KF.Xs.size());
-   }
-  }
+
 
   int idxMax = static_cast<int>(m_idx2iX.size()) - 1;
   std::vector<MapPointIndex> &ixsSort = m_idxsSortTmp;
