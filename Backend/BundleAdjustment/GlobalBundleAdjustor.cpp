@@ -64,15 +64,6 @@ void GlobalBundleAdjustor::Initialize(IBA::Solver *solver, const int serial, con
   m_debug = debug;
   m_history = history;
   m_dir = solver->m_internal->m_dir;
-#ifdef CFG_GROUND_TRUTH
-  m_CsGT = solver->m_internal->m_CsGT.Data();
-  m_dsGT = solver->m_internal->m_DsGT.empty() ? NULL : &solver->m_internal->m_dsGT;
-#ifdef CFG_HISTORY
-  if (m_history >= 3 && (!m_CsGT || !m_dsGT)) {
-    m_history = 2;
-  }
-#endif
-#endif
 }
 
 void GlobalBundleAdjustor::Reset() {

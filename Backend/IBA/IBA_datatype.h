@@ -50,10 +50,6 @@ struct Calibration {
   float bw[3];    // initial gyroscope bias
   //float sa[3];
   Intrinsic K;    // intrinsic parameters
-#ifdef CFG_STEREO
-  float Tr[3][4]; // X_left = Tr * X_right
-  Intrinsic Kr;   // intrinsic parameters for right camera
-#endif
 };
 
 struct CameraPose {
@@ -95,18 +91,9 @@ struct MapPointMeasurement {
     int idx;  // global point ID
   };
   inline bool operator < (const MapPointMeasurement &X) const {
-    return iFrm < X.iFrm
-#ifdef CFG_STEREO
-//#if 1
-        || iFrm <= X.iFrm && !right && X.right
-#endif
-        ;
+    return iFrm < X.iFrm;
   }
   Point2D x;
-#ifdef CFG_STEREO
-//#if 1
-  ubyte right;
-#endif
 };
 
 struct MapPoint {
@@ -135,10 +122,6 @@ struct CurrentFrame {
   Depth d;                              // a rough depth estimate for current frame
                                         // (e.g. average over all visible points in current frame)
   std::string fileName;                 // image file name, just for visualization
-#ifdef CFG_STEREO
-//#if 1
-  std::string fileNameRight;
-#endif
 };
 
 struct KeyFrame {
@@ -157,9 +140,6 @@ struct SlidingWindow {
                                     // has been updated since last call
   std::vector<CameraPose> CsKF;     // camera poses corresponding to iFrmsKF
   std::vector<Point3D> Xs;          // updated 3D points since last call
-#ifdef CFG_CHECK_REPROJECTION
-  std::vector<std::pair<float, float> > esLF, esKF;
-#endif
 };
 
 struct RelativeConstraint {

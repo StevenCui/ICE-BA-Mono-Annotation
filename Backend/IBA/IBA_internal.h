@@ -31,11 +31,7 @@ class Internal {
   class FeatureMeasurement {
    public:
     inline bool operator < (const FeatureMeasurement &z) const {
-      return m_id < z.m_id
-#ifdef CFG_STEREO
-          || (m_id == z.m_id && !m_right && z.m_right)
-#endif
-        ;
+      return m_id < z.m_id;
     }
     inline bool operator < (const int id) const {
       return m_id < id;
@@ -80,9 +76,6 @@ class Internal {
   const LocalBundleAdjustor::InputLocalFrame& PushCurrentFrame(const CurrentFrame &CF);
   const GlobalMap::InputKeyFrame& PushKeyFrame(const KeyFrame &KF, const Camera *C = NULL);
   void ConvertFeatureMeasurements(const std::vector<MapPointMeasurement> &zs, FRM::Frame *F);
-#ifdef CFG_GROUND_TRUTH
-  void PushDepthMeasurementsGT(const FRM::Frame &F);
-#endif
 
   bool SavePoints(const AlignedVector<Rigid3D> &CsKF,
                   const std::vector<::Depth::InverseGaussian> &ds,
@@ -110,21 +103,10 @@ class Internal {
   std::vector<LocalMap::CameraKF> m_CsKF;
   std::vector<::Depth::InverseGaussian> m_ds;
   std::vector<ubyte> m_uds;
-#ifdef CFG_GROUND_TRUTH
-  AlignedVector<IMU::Measurement> m_usGT;
-  std::vector<int> m_iusGT;
-  std::vector<float> m_tsGT;
-  std::vector<::Depth::InverseGaussian> m_dsGT;
-  AlignedVector<Rotation3D> m_RsGT;
-  AlignedVector<LA::AlignedVector3f> m_TsGT;
-  std::vector<std::vector<::Depth::Measurement> > m_zsGT;
-#endif
+
 
   Camera::Calibration m_K;
   ::Intrinsic::UndistortionMap m_UM;
-#ifdef CFG_STEREO
-  ::Intrinsic::UndistortionMap m_UMr;
-#endif
   AlignedVector<Camera> m_CsGT;
   std::vector<::Depth::InverseGaussian> m_DsGT;
   std::string m_dir;

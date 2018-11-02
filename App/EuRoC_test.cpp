@@ -285,7 +285,8 @@ bool create_iba_frame(const vector<cv::KeyPoint>& kps_l,
   InitPOD(mp_mea);
   mp_mea.x.S[0][0] = mp_mea.x.S[1][1] = 1.f;
   mp_mea.x.S[0][1] = mp_mea.x.S[1][0] = 0.f;
-  for (; kp_it_l != kps_l.cend() && kp_it_l->class_id <= last_added_point_id; ++kp_it_l) {
+  for (; kp_it_l != kps_l.cend() && kp_it_l->class_id <= last_added_point_id; ++kp_it_l) 
+  {
     mp_mea.idx = kp_it_l->class_id;
     mp_mea.x.x[0] = kp_it_l->pt.x;
     mp_mea.x.x[1] = kp_it_l->pt.y;
@@ -450,9 +451,6 @@ int main(int argc, char** argv) {
                 FLAGS_iba_param_path,
                 "" /* iba directory */);
   solver.SetCallbackLBA([&](const int iFrm, const float ts) {
-#ifndef __DUO_VIO_TRACKER_NO_DEBUG__
-    VLOG(1) << "===== start ibaCallback at ts = " << ts;
-#endif
     // as we may be able to send out information directly in the callback arguments
     IBA::SlidingWindow sliding_window;
     solver.GetSlidingWindow(&sliding_window);
